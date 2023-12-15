@@ -17,8 +17,6 @@ c = engine.connect()
 
 # Connect Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'mysecret'
-
 @app.route('/', methods = ["GET", "POST"])
 
 def index():
