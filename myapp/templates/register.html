@@ -1,0 +1,40 @@
+{% extends 'layout.html' %}
+{% block body %}
+    <div class="container">
+        <div class = "offset-1">
+            <h2>Register</h2>
+        </div>
+        <form action = "/register" method = "post">
+            <div class="row">
+                <div class = "col-6 offset-1">
+                    <div class = "row">
+                        <label for = "username" class = "form-label">Username</label>
+                        <input type = "text" class = "form-control" name = "username" id = "username" placeholder = "Please enter your name here" autocomplete="off">
+                    </div>
+                    <div class="row">
+                        <label for = "password" class = "form-label">Password</label>
+                        <input type = "password" class = "form-control" id = "password" name = "password" placeholder = "Please enter your password here" autocomplete="off">
+                    </div>
+                    <br>
+                    <div class="row">
+                        <input type = "password" class = "form-control" id = "confirmation" name = "confirmation" placeholder = "Please confirm your password here" autocomplete="off">
+                    </div>
+                    <div class="row">
+                        <select class = "form-select" name = "authority">
+                            <option disabled selected value> -- select an option -- </option>
+                            <option value = "Administrator">Admin</option>
+                            <option value = "Data_Entry">Employee/Secretary</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <button type = "submit" class = "btn btn-primary">Register</button>
+                    </div>
+                </div>
+                <div class = "col-5">
+                    <img src = "https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=328,h=297,fit=crop/AoPE27RPogUDkbDp/care-bot4-AQE8GDWVlMIqKpxP.png" alt = "Carebot" width="75%">
+                </div>
+            </div>
+        </form>
+        
+    </div>    
+{% endblock %}

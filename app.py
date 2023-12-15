@@ -1,3 +1,6 @@
+from flask import Flask, render_template, request, redirect
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField, IntegerField
 import pandas as pd
 from sqlalchemy import create_engine
 
@@ -11,6 +14,13 @@ engine = create_engine(f'mysql+mysqlconnector://{username}:{password}@127.0.0.1/
 df.to_sql(name = "product_list", con = engine, if_exists= 'replace', index = False)
 c = engine.connect()
 
+# Connect Flask
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'mysecret'
+@app.route('/')
+
+def index():
+    return render_template('index.html')
 
 def get_date():
     print("Please enter the date: ")
