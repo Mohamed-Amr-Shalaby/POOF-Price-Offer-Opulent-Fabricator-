@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <div class="row text-center">
+            <h1>Change the price of all the products by a constant percentage</h1>
+        </div>
+        <hr>
+        <br>
+        <br>
+        <form action = "/percentage", method="post">
+            <div class="row">
+                <div class="col-6">
+                    <select name = "change_type" class = "form-select">
+                        <option selected>-- What kind of change would you like to apply? --</option>
+                        <option name = "increase" value="Increase">Increase Prices ↑</option>
+                        <option name = "decrease" value="Decrease">Decrease Prices ↓</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <input type = "number" class = "form-control" placeholder = "Percentage" name = "percentage" id = "percentage">
+                </div>
+            </div> 
+            <br>
+            <div class="row">
+                <button type = "button" class = "btn btn-primary">Submit  price edit</button>
+            </div>
+        </form>
+    </div>    
+{% endblock %}

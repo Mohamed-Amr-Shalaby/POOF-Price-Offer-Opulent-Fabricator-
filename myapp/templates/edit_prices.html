@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class = "text-center">
+                <h2>What type of price modification would you like to apply?</h2>
+            </div>
+        </div>
+        <br>
+        <form action = "/price" method = "post">
+            <select name = "price" class="form-select">
+                <option selected>-- Please choose a method to edit the price --</option>
+                <option name = "edit_single_product_price" value="single_product">Edit single product price</option>
+                <option name = "edit_prices_by_percentage" value="percentage">Edit all the product prices by a certain percentage</option>
+            </select>
+            <p>
+                <div class = "row">
+                    <button type = "submit" class = "btn btn-primary">Submit</button>
+                </div>
+            </p>
+        </form>
+    </div>    
+{% endblock %}

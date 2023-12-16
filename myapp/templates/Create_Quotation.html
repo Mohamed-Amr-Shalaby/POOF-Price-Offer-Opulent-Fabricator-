@@ -1,1 +1,116 @@
-Create Quotation
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <div class="row text-center">
+            <h1>Create a new Quotation</h1>
+        </div>
+        <br>
+        <br>
+        <form>
+            <div class="row">
+                <div class="row form-group">
+                    <label for="date" class="col-sm-1 col-form-label">Issue Date</label>
+                    <div class="col-4">
+                        <div class="input-group date" id="datepicker">
+                            <input name = quotation_date type="text" class="form-control" placeholder = "DD/MM/YYYY">
+                            <span class="input-group-append">
+                                <span class="input-group-text bg-white d-block">
+                                    <i class="fa fa-calendar"></i>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <label for="customer_name" class="col-sm-1 col-form-label">Customer Name</label>
+                <div class="col-4">
+                    <input required name = "customer_name" type="text" class="form-control" placeholder="Enter Customer Name">
+                </div>
+                <label for="customer_number" class="col-sm-1 col-form-label">Customer Number</label>
+                <div class="col-4">
+                    <input required name = "customer_number" type="tel" class="form-control" placeholder="Enter Customer Number">
+                </div>
+            </div>
+            <div class="row">
+                <label for="contact_name" class="col-sm-1 col-form-label">Contact Name</label>
+                <div class="col-4">
+                    <input name = "contact_name" id = "contact_name" type="text" class="form-control" placeholder="Enter Rep name here">
+                </div>
+                <label for="contact_number" class="col-sm-1 col-form-label">Contact Number</label>
+                <div class="col-4">
+                    <input name = "contact_number" id = "contact_number" type="tel" class="form-control" placeholder="Enter Rep Number here">
+                </div>
+            </div>
+            <br>
+        </form> 
+        <hr>
+        <form>
+            <div class="row">
+                <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
+                <div class="col-4">
+                    <input name = "product_code" id = "product_code" type="number" class="form-control" placeholder="Product Code">
+                </div>
+                <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
+                <div class="col-4">
+                    <input name = "product_name" id = "product_name" type="text" class="form-control" placeholder="Product Name">
+                </div>
+            </div> 
+            <div class="row">
+                <label for = "quantity" class = "col-sm-1 col-form-label">Quantity</label>
+                <div class="col-4">
+                    <input name = "quantity" id = "quantity" type="number" class="form-control" min = "1" placeholder="Product Quantity">
+                </div>
+                <div>
+                    <input name = "price" id = "price" type="number" hidden>
+                </div>
+                <div>
+                    <input name = "description" id = "description" type="text" hidden>
+                </div>
+                <div>
+                    <input name = "sum" id = "sum" type="number" hidden>
+                </div>
+                <div>
+                    <input name = "image" id = "image" type="text" hidden>
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <button type = "button" class = "btn btn-primary">Add Product to list</button>
+            </div>
+        </form>
+        <hr>
+        <br>
+        <br>
+        <div class="row text-center">
+            <h1>Output Table</h1>
+        </div>
+        <br>
+        <table class = "table table-striped">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Sum</th>
+                </tr>
+            </thead>
+        </table>
+        <div class="row text-center">
+            <button type = "button" class = "btn btn-primary">Submit Quotation</button>
+        </div>
+    </div>
+    <script type="text/javascript">
+        $(function() {
+            $('#datepicker').datepicker({
+                format: 'dd/mm/yyyy',
+                autoclose: true,
+                todayHighlight: true,
+                todayBtn: 'linked'
+            });
+        });
+    </script>    
+{% endblock %}

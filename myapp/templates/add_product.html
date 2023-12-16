@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <div class="row text-center">
+            <h1>Add a new product to the product list</h1>
+        </div>
+        <br>
+        <br> 
+        <hr>
+        <form action = "/add_product" method = "post">
+            <div class="row">
+                <label for="product_code" class="col-sm-1 col-form-label">Code</label>
+                <div class="col-4">
+                    <input name = "product_code" id = "product_code" type="number" class="form-control" placeholder="Product Code">
+                </div>
+                <label for="product_name" class="col-sm-1 col-form-label">Name</label>
+                <div class="col-4">
+                    <input name = "product_name" id = "product_name" type="text" class="form-control" placeholder="Product Name">
+                </div>
+            </div> 
+            <br>
+            <div class="row">
+                <label for = "Price" class = "col-sm-1 col-form-label">Price</label>
+                <div class = "col-4">
+                    <input class = "form-control" name = "price" id = "Price" type="number" placeholder="Product Price">
+                </div>
+                <label for= "description" class = "col-sm-1 col-form-label">Description</label>
+                <div class = "col-4">
+                    <input class = "form-control" name = "description" id = "description" type="text" placeholder="Product Description">
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <label for = "image" class = "col-sm-1 col-form-label">Image</label>
+                <div class = "col-4">
+                    <input class = "form-control" name = "image" id = "image" type="file" placeholder="Image">
+                </div>
+            </div>
+            <br>
+            <br>
+            <div class="row">
+                <button type = "submit" class = "btn btn-primary">Add Product to list</button>
+            </div>
+        </form>
+        <br>
+    </div>
+{% endblock %}

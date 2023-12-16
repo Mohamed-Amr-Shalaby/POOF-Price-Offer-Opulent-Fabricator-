@@ -2,9 +2,10 @@
 {% block body %}
     <div class="container">
         <div class = "offset-1">
-            <h2>Register</h2>
+            <h2>Hey, me! :)</h2>
+            <h2>Register a new user</h2>
         </div>
-        <form action = "/register" method = "post">
+        <form action = "/register" method = "post" oninput='up2.setCustomValidity(up2.value != up.value ? "Passwords do not match." : "")'>
             <div class="row">
                 <div class = "col-6 offset-1">
                     <div class = "row">
@@ -13,19 +14,22 @@
                     </div>
                     <div class="row">
                         <label for = "password" class = "form-label">Password</label>
-                        <input type = "password" class = "form-control" id = "password" name = "password" placeholder = "Please enter your password here" autocomplete="off">
+                        <input required type = "password" class = "form-control" id = "password" name = "up" placeholder = "Please enter your password here" autocomplete="off">
                     </div>
                     <br>
                     <div class="row">
-                        <input type = "password" class = "form-control" id = "confirmation" name = "confirmation" placeholder = "Please confirm your password here" autocomplete="off">
+                        <label for = "confirmation" class = "form-label">Confirm Password</label>
+                        <input required type = "password" class = "form-control" id = "confirmation" name = "up2" placeholder = "Please confirm your password here" autocomplete="off">
                     </div>
                     <div class="row">
+                        <label for = "authority" class = "form-label">Authority Level</label>
                         <select class = "form-select" name = "authority">
                             <option disabled selected value> -- select an option -- </option>
                             <option value = "Administrator">Admin</option>
                             <option value = "Data_Entry">Employee/Secretary</option>
                         </select>
                     </div>
+                    <br>
                     <div class="row">
                         <button type = "submit" class = "btn btn-primary">Register</button>
                     </div>

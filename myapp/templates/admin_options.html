@@ -1,28 +1,24 @@
 {% extends 'layout.html' %}
 {% block body %}
     <div class="container">
-        <div class = "offset-1">
-            Sign In
-        </div>
-        <form>
-            <div class="row">
-                <div class = "col">
-                    <a href = "#">
-                        <button type = "button">Add a Product to the Product List</button>
-                    </a>    
-                </div>
-                <div class = "col">
-                    <a href = "#">
-                        <button type = "button">Create a new Quotation</button>
-                    </a>    
-                </div>
-                <div class = "col">
-                    <a href = "#">
-                        <button type = "button">Manage Product Prices</button>
-                    </a>    
-                </div>
+        <div class="row">
+            <div class = "text-center">
+                <h2>Please choose a task to perform</h2>
             </div>
+        </div>
+        <br>
+        <form action = "/task" method = "post">
+            <select name = "task" class="form-select" aria-label="Default select example">
+                <option selected>-- Please choose a task --</option>
+                <option name = "create_quotation" value="Create_quotation">Create a new Quotation</option>
+                <option name = "edit_prices" value="Edit product prices">Edit the product prices</option>
+                <option name = "edit_products"value="Add new product">Add a new product to the list</option>
+            </select>
+            <p>
+                <div class = "text-center">
+                    <button type = "submit" class = "btn btn-primary">Submit</button>
+                </div>
+            </p>
         </form>
-        
     </div>    
 {% endblock %}
