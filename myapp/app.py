@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, IntegerField
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Create engine
@@ -20,28 +20,35 @@ app = Flask(__name__)
 @app.route('/', methods = ["GET", "POST"])
 
 def index():
+    # If the user is not logged in, redirect to login page
     if request.method == "GET":
         return render_template('signIn.html')
     elif request.method == "POST":
+        # Get username and password
         name = request.form.get("Username")
         Pass = request.form.get("Password")
+        # Query Database for the data of the employee
+        authorityres = c.execute(text(f'SELECT * FROM authorized_personnel WHERE Employee_Name = "{name}"'))
+        c.commit()
+        authority = authorityres.all()
+        # Ensure username and password were submitted  
         if not name or not Pass:
-            return render_template('Invalid_Credentials.html')
-        authority = c.execute("SELECT Authority_Level FROM authorized_personnel WHERE Employee_Name = ?", name)
-        if len(authority) != 1 or not check_password_hash(authority[0]["hash"], Pass):
-            return render_template('Invalid_Credentials.html')
-        for row in c:
-            print(row)
-        '''
-        if authority == "Administrator" and password == Pass:
+            print("Name or Pass is empty")
+            return render_template('Invalid_Credentials.html', name = name, Pass = Pass)
+        # Ensure username exists and password is correct    
+        if len(authority) != 1 or not check_password_hash(authority[0][2], Pass):
+            print("Wrong name or wrong Password")
+            return render_template('Invalid_Credentials.html', authority = authorityres)
+        # Redirect user to appropriate page depending on the authority level
+        if authority[0][3] == "Administrator":
             return render_template('admin_options.html')
-        elif authority == "Data_Entry" and password == Pass:
+        elif authority[0][3] == "Data_Entry":
             return render_template('Create_Quotation.html')
-        elif authority == "Developer" and password == Pass:
+        elif authority[0][3] == "Developer":
             return render_template('Developer_Options.html')
         else:
             return render_template('Invalid_Credentials.html')
-        '''
+        
 
 @app.route("/register", methods = ["GET", "POST"])
 def register():
@@ -50,6 +57,7 @@ def register():
         name = request.form.get("username")
         password = request.form.get("password")
         Cpassword = request.form.get("confirmation")
+        authority = request.form.get("authority")
         hash = generate_password_hash(password, method='pbkdf2', salt_length=16)
         if not name:
             return render_template("Invalid_Credentials.html")
@@ -59,18 +67,18 @@ def register():
             return render_template("Invalid_Credentials.html")
 
         # Query database for username
-        rows = c.execute("SELECT * FROM authorized_personnel WHERE Employee_Name = ?", name)
-
+        result = c.execute(text(f'SELECT * FROM authorized_personnel WHERE Employee_Name = "{name}"'))
+        rows = result.all()
         # Ensure username exists and password is correct
         if len(rows) != 0:
             return render_template("Invalid_Credentials.html")
 
-        if not password == Cpassword:
+        if password != Cpassword:
             return render_template("Invalid_Credentials.html")
-        c.execute("INSERT INTO authorized_personnel(Employee_Name, Password) VALUES (?, ?)", name, hash)
-
+        c.execute(text(f'INSERT INTO authorized_personnel(Employee_Name, Password, Authority_Level) VALUES ("{name}", "{hash}", "{authority}")'))
+        c.commit()
         # Redirect user to home page
-        return redirect("/")
+        return redirect("/")    
     else:
         return render_template("register.html")
 
