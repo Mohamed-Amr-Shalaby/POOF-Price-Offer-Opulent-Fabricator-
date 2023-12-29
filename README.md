@@ -30,8 +30,8 @@ pandas
 
 ### Installation
 
-An installation guide will be provided as soon as the project is fully deployed.
+This project is still a work in progress, an installation guide will be provided as soon as the project is fully deployed.
 
 ### Usage
 
-A usage guide will be provided as soon as the project is fully deployed.
+This project is still a work in progress, an installation guide will be provided as soon as the project is fully deployed.
