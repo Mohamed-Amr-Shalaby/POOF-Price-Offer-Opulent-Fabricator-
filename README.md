@@ -1,6 +1,6 @@
 # Price Offer Opulent Fabricator
 
-Short description or tagline for your project.
+A finance management program for Multimedica ScO
 
 ## Table of Contents
 
