@@ -7,7 +7,7 @@ import pandas as pd
 
 # Create engine
 
-df = pd.read_excel("D:/Work/POOF/Poof_Product_List_Excel.xlsx")
+df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
 Codes = {}
 username = "root"
 password = "13579111315szxM"
@@ -119,8 +119,10 @@ def task():
     elif request.method == "POST":
         choice = request.form.get("task")
         print(choice)
+        rows = c.execute(text(f"SELECT product_name FROM product_list ORDER BY product_name ASC"))
+        pnames = rows.all()
         if choice == "Create_quotation":
-            return render_template("Create_Quotation.html")
+            return render_template("Create_Quotation.html", names = pnames)
         elif choice == "Edit product prices":
             return render_template("edit_prices.html")
         elif choice == "Add new product":
@@ -129,6 +131,18 @@ def task():
             return render_template("register.html")
         else:
             return render_template("Invalid_Choice.html")
+
+# Create Quotation Page and handling Queries, autocomplete, and dynamic table row insertion
+@app.route("/Create_Quotation", methods=["GET", "POST"])
+def Create_Quotation():
+    if request.method == "POST":
+        pnames = c.execute(text(f"SELECT product_name FROM product_list ORDER BY product_name ASC"))
+        return render_template("Create_Quotation.html", names = pnames)
+
+@app.route("/query", methods=["GET", "POST"])
+def query():
+    if request.method == "GET":
+        pass
 
 # Create Page that allows admins to change the price of products
 @app.route("/price", methods = ["GET", "POST"])
