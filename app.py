@@ -119,10 +119,11 @@ def task():
     elif request.method == "POST":
         choice = request.form.get("task")
         print(choice)
-        rows = c.execute(text(f"SELECT product_name FROM product_list ORDER BY product_name ASC"))
-        pnames = rows.all()
+        rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
+        prods = rows.all()
         if choice == "Create_quotation":
-            return render_template("Create_Quotation.html", names = pnames)
+            print(type(prods))
+            return render_template("Create_Quotation.html", products = prods)
         elif choice == "Edit product prices":
             return render_template("edit_prices.html")
         elif choice == "Add new product":
@@ -137,12 +138,25 @@ def task():
 def Create_Quotation():
     if request.method == "POST":
         pnames = c.execute(text(f"SELECT product_name FROM product_list ORDER BY product_name ASC"))
-        return render_template("Create_Quotation.html", names = pnames)
+        pcodes = c.execute(text(f"SELECT product_code FROM product_list ORDER BY product_code ASC"))
+        return render_template("Create_Quotation.html", names = pnames, codes = pcodes)
 
 @app.route("/query", methods=["GET", "POST"])
 def query():
     if request.method == "GET":
-        pass
+        return render_template("Create_Quotation.html")
+    elif request.method == "POST":
+        code = request.form.get("product_code")
+        name = request.form.get("product_name")
+        print(name)
+        print(code)
+        quantity = request.form.get("quantity")
+        print(quantity)
+        if (not code and not name) or not quantity:
+            return render_template("insufficient_data.html")
+        product_details = get_product(code, name, quantity)
+
+        return render_template("Create_Quotation.html", product_details=product_details, quantity=quantity)
 
 # Create Page that allows admins to change the price of products
 @app.route("/price", methods = ["GET", "POST"])
@@ -203,18 +217,24 @@ def get_date():
     return date
 
 
-def get_product(code, name):
+def get_product(code, name, quantity):
     pname = name
     pcode = code
-    # TODO Protect against SQL injection
-    pprice = c.execute("SELECT Price FROM product_list WHERE code =? ", pcode)
-    pdescription = c.execute(
-        f"SELECT Description FROM product_list WHERE code = ?", pcode
-    )
-    pimg_dir = c.execute(
-        f"SELECT Image_Directory FROM product_list WHERE code = ?", pcode
-    )
-    product = [pcode, pname, pprice, pdescription, pimg_dir]
+    
+    if not pcode:
+        pcode = c.execute(text(f"SELECT Product_Code FROM product_list WHERE Product_Name = '{pname}'"))
+        pcode = pcode.all()
+    if not pname:
+        pname = c.execute(text(f"SELECT Product_Name FROM product_list WHERE Product_Code = '{pcode}'"))
+        pname = pname.all()
+    pprice = c.execute(text(f"SELECT Price FROM product_list WHERE product_code = '{pcode}'"))
+    pprice = pprice.all()
+
+    pdescription = c.execute(text(f"SELECT Description FROM product_list WHERE product_code = '{pcode}'"))
+    pdescription = pdescription.all()
+    pimg_dir = c.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_code = '{pcode}'"))
+    pimg_dir = pimg_dir.all()
+    product = [pimg_dir, pcode, pname, pdescription, quantity, pprice]
     return product
 
 

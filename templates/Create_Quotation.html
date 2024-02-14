@@ -49,14 +49,14 @@
             <div class="row">
                 <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
                 <div class="col-4">
-                    <input name = "product_code" id = "product_code" type="number" class="form-control" placeholder="Product Code" value = "">
+                    <input name = "product_code" id = "product_code" type="number" class="form-control" placeholder="Product Code" value = "0" required>
                 </div>
                 <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
                 <div class="col-4">
                     <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search...">
                     <datalist id="datalistOptions">
-                        {% for product in names %}
-                            <option id = "product_name" data-tokens= "{{product['product_name']}}" value = "{{product['product_name']}}">{{product['product_name']}}</option>
+                        {% for product in products %}
+                            <option id = "product_name" data-tokens= "{{product[1]}}" value = "{{product}}">{{product[1]}}</option>
                         {% endfor %}    
                     </datalist>
                 </div>
@@ -64,7 +64,7 @@
             <div class="row">
                 <label for = "quantity" class = "col-sm-1 col-form-label">Quantity</label>
                 <div class="col-4">
-                    <input name = "quantity" id = "quantity" type="number" class="form-control" min = "1" placeholder="Product Quantity">
+                    <input name = "quantity" id = "quantity" type="number" class="form-control" min = "1" placeholder="Product Quantity" required>
                 </div>
                 <div>
                     <input name = "price" id = "price" type="number" hidden>
@@ -90,13 +90,32 @@
                 for (var i=0;i<options.length;i++){
                     if (options[i].value == $(this).val()) 
                         {   
-                            document.getElementById('product_code').placeholder = "Hello";
+                            product = options[i].value.slice(1, -1).split(",")
+                            document.getElementById("product_names_list").value = product[1]
+                            console.log(product[1])
+                            document.getElementById("product_code").value = product[0];
+                            console.log(product[0])
                             break;
                         }
                     }
             });
-    
-        </script>
+            $(document).on('change', '#product_code', function(){
+                var options = $('#datalistOptions')[0].options;
+                for (var i=0;i<options.length;i++){
+                    console.log(options[i].value)
+                    product = options[i].value.slice(1, -1).split(",")
+                    if (product[0] == $(this).val()) 
+                        {   
+                            product = options[i].value.slice(1, -1).split(",")
+                            document.getElementById("product_names_list").value = product[1]
+                            console.log(product[1])
+                            document.getElementById("product_code").value = product[0];
+                            console.log(product[0])
+                            break;
+                        }
+                    }
+            });
+        </script>   
         <hr>
         <br>
         <br>
@@ -116,6 +135,14 @@
                     <th>Sum</th>
                 </tr>
             </thead>
+            <tbody>
+                <tr>
+                    {% for detail in product_details %}
+                        <td>{{detail}}</td>
+                    {% endfor %}
+                    <td></td>
+                </tr>
+            </tbody>
         </table>
         <div class="row text-center">
             <button type = "button" class = "btn btn-primary">Submit Quotation</button>
