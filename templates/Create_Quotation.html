@@ -45,11 +45,11 @@
             <br>
         </form> 
         <hr>
-        <form action = "/query" method = "get" id = "product_details">
+        <form action = "/Create_Quotation" method = "post" id = "product_details">
             <div class="row">
                 <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
                 <div class="col-4">
-                    <input name = "product_code" id = "product_code" type="number" class="form-control" placeholder="Product Code" value = "0" required>
+                    <input name = "product_code" id = "product_code" type="text" class="form-control" placeholder="Product Code" value = "0" required>
                 </div>
                 <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
                 <div class="col-4">
@@ -136,12 +136,18 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    {% for detail in product_details %}
-                        <td>{{detail}}</td>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{entry[1]}}</td>
+                        <td>{{entry[0]}}</td>
+                        <td>{{entry[2]}}</td>
+                        <td>{{entry[3]}}</td>
+                        <td>{{entry[4]}}</td>
+                        <td>{{entry[5]}}</td>
+                        <td>{{entry[6]}}</td>
+                    </tr>
                     {% endfor %}
-                    <td></td>
-                </tr>
+                    
             </tbody>
         </table>
         <div class="row text-center">

@@ -137,9 +137,24 @@ def task():
 @app.route("/Create_Quotation", methods=["GET", "POST"])
 def Create_Quotation():
     if request.method == "POST":
-        pnames = c.execute(text(f"SELECT product_name FROM product_list ORDER BY product_name ASC"))
-        pcodes = c.execute(text(f"SELECT product_code FROM product_list ORDER BY product_code ASC"))
-        return render_template("Create_Quotation.html", names = pnames, codes = pcodes)
+        # Get the product code and quantity from the submitted form
+        code = request.form.get("product_code")
+        quantity = request.form.get("quantity")
+        quantity = float(quantity)
+        print(code, quantity)
+        rows = c.execute(text(f"SELECT * FROM product_list WHERE product_code = '{code}'"))
+        prod = rows.all()
+        print(f"price is {prod[0][2]}")
+        # TODO redo the sql table and replace it with a list of lists in the frontend instead of a SQL table
+        c.execute(text(f'INSERT INTO current_quotation VALUES ("{prod[0][0]}", "{prod[0][4]}", "{prod[0][1]}", "{prod[0][3]}", "{quantity}", "{prod[0][2]}", "{prod[0][2] * quantity}")'))
+        c.commit()
+        rows = c.execute(text(f"SELECT * FROM current_quotation"))
+        entries = rows.all()
+        rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
+        prods = rows.all()
+        return render_template("Create_Quotation.html", entries = entries, products = prods)
+
+
 
 @app.route("/query", methods=["GET", "POST"])
 def query():
