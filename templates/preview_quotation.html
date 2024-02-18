@@ -1,0 +1,93 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <div class="row text-center">
+            <h1>Quotation Preview</h1>
+        </div>
+        <br>
+        <hr>
+        <br>
+        <form action = "/Edit_Quotation" method = "post" id = "product_details">
+            <div class = "row">
+                <label for = "date" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Quotation Date: </label>
+                <div class = "col-3">
+                    <input name = "date" id = "date" type="text" value = "{{ customer_info[0][0] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <div class = "row">
+                <label for = "cname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Name: </label>
+                <div class = "col-3">
+                    <input name = "cname" id = "cname" type="text" value = "{{ customer_info[0][1] }}" class = "form-control" readonly>
+                </div>
+                <label for = "cnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Number: </label>
+                <div class = "col-3">
+                    <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info[0][2] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <div class = "row">
+                <label for = "rname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Name: </label>
+                <div class = "col-3">
+                    <input name = "rname" id = "rname" type="text" value = "{{ customer_info[0][3] }}" class = "form-control" readonly>
+                </div>
+                <label for = "rnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Number: </label>
+                <div class = "col-3">
+                    <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info[0][4] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <br>
+            <input name = "product_code" id = "product_code" type="text" class="form-control" placeholder="Product Code" value = "0" required hidden>
+            <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search..." hidden>
+            <input name = "quantity" id = "quantity" type="number" class="form-control" min = "1" placeholder="Product Quantity" hidden>
+            <input name = "price" id = "price" type="number" hidden>
+            <input name = "description" id = "description" type="text" hidden>
+            <input name = "sum" id = "sum" type="number" hidden>
+            <input name = "image" id = "image" type="text" hidden>
+            <table class = "table table-striped">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Sum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td>{{entry[1]}}</td>
+                            <td>{{entry[0]}}</td>
+                            <td>{{entry[2]}}</td>
+                            <td>{{entry[3]}}</td>
+                            <td>{{entry[4]}}</td>
+                            <td>{{entry[5]}}</td>
+                            <td>{{entry[6]}}</td>
+                        </tr>
+                        {% endfor %}
+                        
+                </tbody>
+            </table>
+            <div class="row">
+                <button type = "submit" class = "btn btn-primary">Back to Edit Quotation</button>
+            </div>
+        </form>
+        <br>
+        <form action = "/export", method = "post">
+            <input name = "date" id = "date" type="text" value = "{{ customer_info[0] }}" class = "form-control" readonly hidden>
+            <input name = "cname" id = "cname" type="text" value = "{{ customer_info[1] }}" class = "form-control" readonly hidden>
+            <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info[2] }}" class = "form-control" readonly hidden>
+            <input name = "rname" id = "rname" type="text" value = "{{ customer_info[3] }}" class = "form-control" readonly hidden>
+            <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info[4] }}" class = "form-control" readonly hidden>
+            <div class = "row">
+                <button type = "submit" class = "btn btn-primary">Submit Quotation</button>
+            </div>
+        </form>
+    </div>
+      
+    
+{% endblock %}

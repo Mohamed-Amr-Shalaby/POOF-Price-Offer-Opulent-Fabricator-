@@ -5,47 +5,47 @@
             <h1>Create a new Quotation</h1>
         </div>
         <br>
+        <hr>
+        <div class="row text-center">
+            <h1>Client Data</h1>
+        </div>
         <br>
-        <form>
-            <div class="row">
-                <div class="row form-group">
-                    <label for="date" class="col-sm-1 col-form-label">Issue Date</label>
-                    <div class="col-4">
-                        <div class="input-group date" id="datepicker">
-                            <input name = quotation_date type="text" class="form-control" placeholder = "DD/MM/YYYY">
-                            <span class="input-group-append">
-                                <span class="input-group-text bg-white d-block">
-                                    <i class="fa fa-calendar"></i>
-                                </span>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <label for="customer_name" class="col-sm-1 col-form-label">Customer Name</label>
-                <div class="col-4">
-                    <input required name = "customer_name" type="text" class="form-control" placeholder="Enter Customer Name">
-                </div>
-                <label for="customer_number" class="col-sm-1 col-form-label">Customer Number</label>
-                <div class="col-4">
-                    <input required name = "customer_number" type="tel" class="form-control" placeholder="Enter Customer Number">
-                </div>
-            </div>
-            <div class="row">
-                <label for="contact_name" class="col-sm-1 col-form-label">Contact Name</label>
-                <div class="col-4">
-                    <input name = "contact_name" id = "contact_name" type="text" class="form-control" placeholder="Enter Rep name here">
-                </div>
-                <label for="contact_number" class="col-sm-1 col-form-label">Contact Number</label>
-                <div class="col-4">
-                    <input name = "contact_number" id = "contact_number" type="tel" class="form-control" placeholder="Enter Rep Number here">
+        <form action = "/Create_Quotation" method = "post" id = "product_details">
+            <div class = "row">
+                <label for = "date" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Quotation Date: </label>
+                <div class = "col-3">
+                    <input name = "date" id = "date" type="text" value = "{{ customer_info[0] }}" class = "form-control" readonly>
                 </div>
             </div>
             <br>
-        </form> 
-        <hr>
-        <form action = "/Create_Quotation" method = "post" id = "product_details">
+            <div class = "row">
+                <label for = "cname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Name: </label>
+                <div class = "col-3">
+                    <input name = "cname" id = "cname" type="text" value = "{{ customer_info[1] }}" class = "form-control" readonly>
+                </div>
+                <label for = "cnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Number: </label>
+                <div class = "col-3">
+                    <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info[2] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <div class = "row">
+                <label for = "rname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Name: </label>
+                <div class = "col-3">
+                    <input name = "rname" id = "rname" type="text" value = "{{ customer_info[3] }}" class = "form-control" readonly>
+                </div>
+                <label for = "rnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Number: </label>
+                <div class = "col-3">
+                    <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info[4] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <hr>
+            <div class = "row text-center">
+                <h1>Product Details</h1>
+            </div>
+            <br>
+            <br>
+        
             <div class="row">
                 <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
                 <div class="col-4">
@@ -150,19 +150,16 @@
                     
             </tbody>
         </table>
-        <div class="row text-center">
-            <button type = "button" class = "btn btn-primary">Submit Quotation</button>
-        </div>
+        <form action = "/preview", method = "post">
+            <input name = "date" id = "date" type="text" value = "{{ customer_info[0] }}" class = "form-control" readonly hidden>
+            <input name = "cname" id = "cname" type="text" value = "{{ customer_info[1] }}" class = "form-control" readonly hidden>
+            <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info[2] }}" class = "form-control" readonly hidden>
+            <input name = "rname" id = "rname" type="text" value = "{{ customer_info[3] }}" class = "form-control" readonly hidden>
+            <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info[4] }}" class = "form-control" readonly hidden>
+            <button type = "submit" class = "btn btn-primary">Preview Quotation</button>
+            </div>
+        </form>
     </div>
-    <script type="text/javascript">
-        $(function() {
-            $('#datepicker').datepicker({
-                format: 'dd/mm/yyyy',
-                autoclose: true,
-                todayHighlight: true,
-                todayBtn: 'linked'
-            });
-        });
-    </script>  
+      
     
 {% endblock %}

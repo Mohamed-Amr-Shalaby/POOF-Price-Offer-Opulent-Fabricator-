@@ -9,6 +9,13 @@ import pandas as pd
 
 df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
 Codes = {}
+current_quotation = []
+current_client = {"Date": "",
+                   "Customer_Name":"",
+                   "Customer_Number":"",
+                   "Rep_Name":"",
+                   "Rep_Number":"",} 
+customer_info = []
 username = "root"
 password = "13579111315szxM"
 engine = create_engine(
@@ -123,7 +130,7 @@ def task():
         prods = rows.all()
         if choice == "Create_quotation":
             print(type(prods))
-            return render_template("Create_Quotation.html", products = prods)
+            return render_template("customer_info.html")
         elif choice == "Edit product prices":
             return render_template("edit_prices.html")
         elif choice == "Add new product":
@@ -133,6 +140,36 @@ def task():
         else:
             return render_template("Invalid_Choice.html")
 
+
+@app.route("/customer_info", methods=["GET", "POST"])
+def Customer_Info():
+    if request.method == "POST":
+        date = request.form.get("quotation_date")
+        client_name = request.form.get("customer_name")
+        client_number = request.form.get("customer_number")
+        rep_name = request.form.get("rep_name")
+        rep_number = request.form.get("rep_number")
+        rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
+        prods = rows.all()
+        customer_info = [date, client_name, client_number, rep_name, rep_number]
+        if not client_name or not date or not rep_name or not rep_number:
+            return render_template("insufficient_data.html")
+        return render_template("Create_Quotation.html", products = prods, customer_info = customer_info)
+    pass
+
+@app.route("/Edit_Quotation", methods=["GET", "POST"])
+def Edit_Quotation():
+    if request.method == "POST":
+        date = request.form.get("date")
+        client_name = request.form.get("cname")
+        client_number = request.form.get("cnum")
+        rep_name = request.form.get("rname")
+        rep_number = request.form.get("rnum")
+        rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
+        prods = rows.all()
+        customer_info = [date, client_name, client_number, rep_name, rep_number]
+        return render_template("Create_Quotation.html", products = prods, customer_info = customer_info, entries = current_quotation)
+
 # Create Quotation Page and handling Queries, autocomplete, and dynamic table row insertion
 @app.route("/Create_Quotation", methods=["GET", "POST"])
 def Create_Quotation():
@@ -141,19 +178,43 @@ def Create_Quotation():
         code = request.form.get("product_code")
         quantity = request.form.get("quantity")
         quantity = float(quantity)
-        print(code, quantity)
         rows = c.execute(text(f"SELECT * FROM product_list WHERE product_code = '{code}'"))
         prod = rows.all()
-        print(f"price is {prod[0][2]}")
-        # TODO redo the sql table and replace it with a list of lists in the frontend instead of a SQL table
-        c.execute(text(f'INSERT INTO current_quotation VALUES ("{prod[0][0]}", "{prod[0][4]}", "{prod[0][1]}", "{prod[0][3]}", "{quantity}", "{prod[0][2]}", "{prod[0][2] * quantity}")'))
-        c.commit()
-        rows = c.execute(text(f"SELECT * FROM current_quotation"))
-        entries = rows.all()
+        date = request.form.get("date")
+        client_name = request.form.get("cname")
+        client_number = request.form.get("cnum")
+        rep_name = request.form.get("rname")
+        rep_number = request.form.get("rnum")
+        customer_info = [date, client_name, client_number, rep_name, rep_number]
+        # redo the sql table and replace it with a list of lists in the frontend instead of a SQL table
+        current_quotation.append([prod[0][0], prod[0][4], prod[0][1], prod[0][3], quantity, prod[0][2], prod[0][2] * quantity])
+        print(prod[0][0])
+        print(prod[0][1])
+        print(prod[0][2])
+        print(prod[0][3])
+        print(prod[0][4])
         rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
         prods = rows.all()
-        return render_template("Create_Quotation.html", entries = entries, products = prods)
+        return render_template("Create_Quotation.html", entries = current_quotation, products = prods, customer_info = customer_info)
 
+#TODO Add a route that allows the user to delete a product from the quotation. This will require a new form for each table row in the HTML
+
+@app.route("/preview", methods=["GET", "POST"])
+def preview():
+    #TODO Add a preview page that shows the current quotation, an option to go back and edit, and an option to submit
+    client_columns = ['Date', 'Customer_Name', 'Customer_Number', 'Rep_Name', 'Rep_Number']
+    date = request.form.get("date")
+    client_name = request.form.get("cname")
+    client_number = request.form.get("cnum")
+    rep_name = request.form.get("rname")
+    rep_number = request.form.get("rnum")
+    customer_info = [[date, client_name, client_number, rep_name, rep_number]]
+    client_df = pd.DataFrame(customer_info, columns = client_columns)
+    print(client_df)
+    product_columns = ['Image', 'Product_Code', 'Product_Name', 'Description', 'Quantity', 'Price', 'Total']
+    product_df = pd.DataFrame(current_quotation, columns = product_columns)
+    print(product_df)
+    return render_template("preview_quotation.html", customer_info = customer_info, entries = current_quotation)
 
 
 @app.route("/query", methods=["GET", "POST"])
