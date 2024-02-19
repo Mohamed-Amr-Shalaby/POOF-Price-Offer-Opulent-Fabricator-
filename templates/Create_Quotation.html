@@ -14,29 +14,29 @@
             <div class = "row">
                 <label for = "date" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Quotation Date: </label>
                 <div class = "col-3">
-                    <input name = "date" id = "date" type="text" value = "{{ customer_info[0] }}" class = "form-control" readonly>
+                    <input name = "date" id = "date" type="text" value = "{{ customer_info['Date'] }}" class = "form-control" readonly>
                 </div>
             </div>
             <br>
             <div class = "row">
                 <label for = "cname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Name: </label>
                 <div class = "col-3">
-                    <input name = "cname" id = "cname" type="text" value = "{{ customer_info[1] }}" class = "form-control" readonly>
+                    <input name = "cname" id = "cname" type="text" value = "{{ customer_info['Customer_Name'] }}" class = "form-control" readonly>
                 </div>
                 <label for = "cnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Number: </label>
                 <div class = "col-3">
-                    <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info[2] }}" class = "form-control" readonly>
+                    <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info['Customer_Number'] }}" class = "form-control" readonly>
                 </div>
             </div>
             <br>
             <div class = "row">
                 <label for = "rname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Name: </label>
                 <div class = "col-3">
-                    <input name = "rname" id = "rname" type="text" value = "{{ customer_info[3] }}" class = "form-control" readonly>
+                    <input name = "rname" id = "rname" type="text" value = "{{ customer_info['Rep_Name'] }}" class = "form-control" readonly>
                 </div>
                 <label for = "rnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Number: </label>
                 <div class = "col-3">
-                    <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info[4] }}" class = "form-control" readonly>
+                    <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info['Rep_Number'] }}" class = "form-control" readonly>
                 </div>
             </div>
             <hr>
@@ -65,18 +65,6 @@
                 <label for = "quantity" class = "col-sm-1 col-form-label">Quantity</label>
                 <div class="col-4">
                     <input name = "quantity" id = "quantity" type="number" class="form-control" min = "1" placeholder="Product Quantity" required>
-                </div>
-                <div>
-                    <input name = "price" id = "price" type="number" hidden>
-                </div>
-                <div>
-                    <input name = "description" id = "description" type="text" hidden>
-                </div>
-                <div>
-                    <input name = "sum" id = "sum" type="number" hidden>
-                </div>
-                <div>
-                    <input name = "image" id = "image" type="text" hidden>
                 </div>
             </div>
             <br>
@@ -151,13 +139,7 @@
             </tbody>
         </table>
         <form action = "/preview", method = "post">
-            <input name = "date" id = "date" type="text" value = "{{ customer_info[0] }}" class = "form-control" readonly hidden>
-            <input name = "cname" id = "cname" type="text" value = "{{ customer_info[1] }}" class = "form-control" readonly hidden>
-            <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info[2] }}" class = "form-control" readonly hidden>
-            <input name = "rname" id = "rname" type="text" value = "{{ customer_info[3] }}" class = "form-control" readonly hidden>
-            <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info[4] }}" class = "form-control" readonly hidden>
             <button type = "submit" class = "btn btn-primary">Preview Quotation</button>
-            </div>
         </form>
     </div>
       
