@@ -53,7 +53,7 @@
                 </div>
                 <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
                 <div class="col-4">
-                    <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search...">
+                    <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search..." required>
                     <datalist id="datalistOptions">
                         {% for product in products %}
                             <option id = "product_name" data-tokens= "{{product[1]}}" value = "{{product}}">{{product[1]}}</option>

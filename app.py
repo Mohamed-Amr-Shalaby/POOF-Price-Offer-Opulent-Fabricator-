@@ -4,7 +4,8 @@ from wtforms import StringField, SubmitField, IntegerField
 from sqlalchemy import create_engine, text
 from flask_wtf import FlaskForm
 import pandas as pd
-
+from docx import Document
+from docx.shared import Cm
 # Create engine
 
 df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
@@ -26,6 +27,20 @@ c = engine.connect()
 
 # Connect Flask
 app = Flask(__name__)
+
+# Create a document instance
+quotation_doc = Document()
+
+# Set Font of the document
+style = quotation_doc.styles["Normal"]
+style.font.name = "Arial"
+
+# Add header to the document
+header_section = quotation_doc.sections[0]
+header = header_section.header
+header_text = header.paragraphs[0]
+header_text.text = "Multimedica ScO. All Rights Reserved"
+
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -174,7 +189,10 @@ def Create_Quotation():
         rows = c.execute(text(f"SELECT * FROM product_list WHERE product_code = '{code}'"))
         prod = rows.all()
         # redo the sql table and replace it with a list of lists in the frontend instead of a SQL table
-        current_quotation.append([prod[0][0], prod[0][4], prod[0][1], prod[0][3], quantity, prod[0][2], prod[0][2] * quantity])
+        if len(prod) > 0:
+            current_quotation.append([prod[0][4], prod[0][0], prod[0][1], prod[0][3], quantity, prod[0][2], prod[0][2] * quantity])
+        else:
+            render_template("insufficient_data.html")
         """ print(prod[0][0])
         print(prod[0][1])
         print(prod[0][2])
@@ -201,6 +219,8 @@ def submit():
         client_list = [[current_client["Date"], current_client["Customer_Name"], current_client["Customer_Number"], current_client["Rep_Name"], current_client["Rep_Number"]]]
         client_data = pd.DataFrame(client_list, columns = client_columns)
         product_data = pd.DataFrame(current_quotation, columns = product_columns)
+
+        print(product_data)
         #Export the dataframes to an Excel file, then save the file as a pdf
         #and save the pdf to the database alongside the name of the user and the date of submission
         #Add serializtion to the quotation files
@@ -210,6 +230,54 @@ def submit():
         #Clear the current quotation and client info
         current_quotation.clear()
         current_client.clear()
+        #Add Title
+        Number = 1
+        quotation_doc.add_heading(f"Quotation No. {Number}", 0)
+        # Add Paragraphs
+        p = quotation_doc.add_paragraph("Date: ")
+        p.add_run(client_data["Date"][0])
+        p = quotation_doc.add_paragraph("Customer Name: ")
+        p.add_run(client_data["Customer_Name"][0])
+        p = quotation_doc.add_paragraph("Customer Number: ")
+        p.add_run(client_data["Customer_Number"][0])
+        p = quotation_doc.add_paragraph("Rep Name: ")
+        p.add_run(client_data["Rep_Name"][0])
+        p = quotation_doc.add_paragraph("Rep Number: ")
+        p.add_run(client_data["Rep_Number"][0])
+        
+        # Add QR Code of Quotation
+        quotation_doc.add_picture("D:/Work/POOF/qr_code.png", width=Cm(3.0), height=Cm(3.0))
+
+        # Add Table
+        table = quotation_doc.add_table(rows=1, cols=7)
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "Image"
+        hdr_cells[1].text = "Product Code"
+        hdr_cells[2].text = "Product Name"
+        hdr_cells[3].text = "Description"
+        hdr_cells[4].text = "Quantity"
+        hdr_cells[5].text = "Price"
+        hdr_cells[6].text = "Total"
+        for i in range(len(product_data)):
+            row_cells = table.add_row().cells
+            print(f"Product Code is: {product_data["Product_Code"][i]}")
+            print(i)
+            row_cells[0].text = str(product_data["Image"][i])
+            row_cells[1].text = str(product_data["Product_Code"][i])
+            row_cells[2].text = str(product_data["Product_Name"][i])
+            row_cells[3].text = str(product_data["Description"][i])
+            row_cells[4].text = str(product_data["Quantity"][i])
+            row_cells[5].text = str(product_data["Price"][i])
+            row_cells[6].text = str(product_data["Total"][i])
+        quotation_doc.add_page_break()
+        quotation_doc.save(f'Quotation_{Number}.docx')
+        #TODO Export the quotation to the database and save the pdf to the database
+        #TODO Clear the document after exporting it to the database
+        # Clear Dataframes
+        client_data = pd.DataFrame()
+        product_data = pd.DataFrame()
+        print(client_data)
+        print(product_data)
         return render_template("successful_submission.html"), {"Refresh": "10; url=/"}
     pass
 
