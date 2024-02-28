@@ -1,33 +1,48 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, session
 from wtforms import StringField, SubmitField, IntegerField
 from sqlalchemy import create_engine, text
 from flask_wtf import FlaskForm
 import pandas as pd
-from docx import Document
-from docx.shared import Cm
-# Create engine
+import openpyxl
+from openpyxl import Workbook
+from flask_session import Session
+import PIL
 
+
+
+#  Create engine
 df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
-Codes = {}
 current_quotation = []
 current_client = {"Date": "",
                    "Customer_Name":"",
                    "Customer_Number":"",
                    "Rep_Name":"",
                    "Rep_Number":"",} 
-customer_info = []
 username = "root"
 password = "13579111315szxM"
 engine = create_engine(
     f"mysql+mysqlconnector://{username}:{password}@127.0.0.1/poof_schema"
 )
-df.to_sql(name="product_list", con=engine, if_exists="replace", index=False)
+try:
+    df.to_sql(name="product_list", con=engine, if_exists="fail", index=False)
+except ValueError:
+    pass
 c = engine.connect()
 
 # Connect Flask
 app = Flask(__name__)
 
+#ٌRead the Quotation Template content
+quotation = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
+sheet = quotation.active
+Date_Cell = sheet["I5"]
+Customer_Name_Cell = sheet["A9"]
+Customer_Number_Cell = sheet["C9"]
+Rep_Name_Cell = sheet["A12"]
+Rep_Number_Cell = sheet["C12"]
+Quotation_Number_Cell = sheet["G5"]
+""" 
 # Create a document instance
 quotation_doc = Document()
 
@@ -39,21 +54,40 @@ style.font.name = "Arial"
 header_section = quotation_doc.sections[0]
 header = header_section.header
 header_text = header.paragraphs[0]
-header_text.text = "Multimedica ScO. All Rights Reserved"
+header_text.text = "Multimedica ScO.\nAddress: 27 Al Hayah St. Tanta Qism 2, Gharbia Governorate 31511, Egypt"
 
-
+ """
+# Configure Session to use filesystem
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    # If the user is not logged in, redirect to login page
+    if not session.get("name"):
+        return redirect("/login")
+    name = session["name"].split(" ")[0]
+    # Clear the current quotation and client info
+    current_quotation.clear()
+    current_client.clear()
+    return render_template("index.html", name=name)
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
     # TODO session tracking
     # If the user is not logged in, redirect to login page
     if request.method == "GET":
+        if session.get("name") and session.get("access_level"):
+            print(session.get("name"))
+            print(session.get("access_level"))
+            return render_template("index.html")
         return render_template("signIn.html")
     elif request.method == "POST":
         # Get username and password
         name = request.form.get("Username")
         Pass = request.form.get("Password")
-
+        session["name"] = name
         # Query Database for the data of the employee
         # TODO Protect against SQL injection
         authorityres = c.execute(
@@ -61,7 +95,7 @@ def index():
         )
         c.commit()
         authority = authorityres.all()
-
+        
         # Ensure username and password were submitted
         if not name or not Pass:
             print("Name or Pass is empty")
@@ -71,16 +105,13 @@ def index():
         if len(authority) != 1 or not check_password_hash(authority[0][2], Pass):
             print("Wrong name or wrong Password")
             return render_template("Invalid_Credentials.html", authority=authorityres)
-
+        
+        session["user_id"] = authority[0][0]
+        session["access_level"] = authority[0][3]
         # Redirect user to appropriate page depending on the authority level
-        if authority[0][3] == "Administrator":
-            return render_template("admin_options.html")
-        elif authority[0][3] == "Data_Entry":
-            return render_template("Create_Quotation.html")
-        elif authority[0][3] == "Developer":
-            return render_template("Developer_Options.html")
-        else:
-            return render_template("Invalid_Credentials.html")
+        if session["access_level"]:
+            return redirect("/")
+        return render_template("Invalid_Credentials.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -132,12 +163,42 @@ def register():
     else:
         return render_template("register.html")
 
+# Logout the user
+@app.route("/logout")
+def logout():
+    # Clear the session
+    session.clear()
+    return redirect("/")
+
+# View the Quotation
+@app.route("/view", methods=["GET", "POST"])
+def view_quotation():
+    entires = [["logo.png", 1, "Product 1", "Description 1", 500, 5, 2500], 
+               ["URL2", 2, "Product 2", "Description 2", 1000, 10, 10000],
+               ["URL3", 3, "Product 3", "Description 3", 1500, 15, 22500],
+               ["URL4", 4, "Product 4", "Description 4", 2000, 20, 40000],
+               ["URL5", 5, "Product 5", "Description 5", 2500, 25, 62500],
+               ["URL6", 6, "Product 6", "Description 6", 3000, 30, 90000],
+               ["URL7", 7, "Product 7", "Description 7", 3500, 35, 122500],]
+    total = 0
+    vat = 0
+    for entry in entires:
+        total += entry[6]
+    vat = total * 0.14
+    total += vat
+    return render_template("view_quotation.html", entries = entires, total = total, vat = vat)
 
 # Tasks page
 @app.route("/task", methods=["GET", "POST"])
 def task():
     if request.method == "GET":
-        return render_template("admin_options.html")
+        if session["access_level"] == 'Developer':
+            return render_template("admin_options.html")
+        elif session["access_level"] == 'Administrator':
+            return render_template("admin_options.html")
+        elif session["access_level"] == 'Data_Entry':    
+            return render_template("customer_info.html")
+        return render_template("Invalid_Credentials.html")
     elif request.method == "POST":
         choice = request.form.get("task")
         #print(choice)
@@ -219,19 +280,39 @@ def submit():
         client_list = [[current_client["Date"], current_client["Customer_Name"], current_client["Customer_Number"], current_client["Rep_Name"], current_client["Rep_Number"]]]
         client_data = pd.DataFrame(client_list, columns = client_columns)
         product_data = pd.DataFrame(current_quotation, columns = product_columns)
-
-        print(product_data)
         #Export the dataframes to an Excel file, then save the file as a pdf
         #and save the pdf to the database alongside the name of the user and the date of submission
         #Add serializtion to the quotation files
-        with pd.ExcelWriter("D:/Work/POOF/Quotation.xlsx") as writer:
+        """ with pd.ExcelWriter("D:/Work/POOF/Quotation.xlsx") as writer:
             client_data.to_excel(writer, sheet_name = "Client_Info", index = True)
-            product_data.to_excel(writer, sheet_name = "Product_Info", index = True)
+            product_data.to_excel(writer, sheet_name = "Product_Info", index = True) """
         #Clear the current quotation and client info
         current_quotation.clear()
         current_client.clear()
-        #Add Title
         Number = 1
+        # Add the client data to the quotation template
+        Date_Cell.value = client_data["Date"][0]
+        Customer_Name_Cell.value = client_data["Customer_Name"][0]
+        Customer_Number_Cell.value = client_data["Customer_Number"][0]
+        Rep_Name_Cell.value = client_data["Rep_Name"][0]
+        Rep_Number_Cell.value = client_data["Rep_Number"][0]
+        Quotation_Number_Cell.value = Number
+        # Add the product data to the quotation template
+        rows = sheet.iter_rows(min_row = 14, max_row = 14 + len(product_data), min_col = 1, max_col = 9)
+        print("Rows: ", rows)
+        for i, row in enumerate(rows):
+            if i == len(product_data):
+                break
+            row[6].value = product_data["Quantity"][i]
+            row[0].value = product_data["Product_Name"][i]
+            row[2].value = product_data["Description"][i]
+            row[7].value = product_data["Price"][i]
+            row[8].value = product_data["Total"][i]     
+
+        quotation.save(filename = f'Quotation_{Number}.xlsx')
+        
+        """ 
+        #Add Title
         quotation_doc.add_heading(f"Quotation No. {Number}", 0)
         # Add Paragraphs
         p = quotation_doc.add_paragraph("Date: ")
@@ -271,24 +352,24 @@ def submit():
             row_cells[6].text = str(product_data["Total"][i])
         quotation_doc.add_page_break()
         quotation_doc.save(f'Quotation_{Number}.docx')
+        """
         #TODO Export the quotation to the database and save the pdf to the database
-        #TODO Clear the document after exporting it to the database
         # Clear Dataframes
         client_data = pd.DataFrame()
         product_data = pd.DataFrame()
-        print(client_data)
-        print(product_data)
-        return render_template("successful_submission.html"), {"Refresh": "10; url=/"}
+        return render_template("successful_submission.html"), {"Refresh": "5; url=/"}
     pass
 
 
 # Create Page that allows admins to change the price of products
 @app.route("/price", methods = ["GET", "POST"])
 def price():
+    rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
+    prods = rows.all()
     if request.method == "POST":
         choice = request.form.get("price")
         if choice == "single_product":
-            return render_template("single_product.html")
+            return render_template("single_product.html", products = prods)
         elif choice == "percentage":
             return render_template("percentage.html")
     return render_template("edit_prices.html")
@@ -296,13 +377,15 @@ def price():
 # Change the price of a single product
 @app.route("/single_price", methods = ["GET", "POST"])
 def single_price():
+    rows = c.execute(text(f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"))
+    prods = rows.all()
     if request.method == "POST":
-        code = request.form.get("code")
+        code = request.form.get("product_code")
         price = request.form.get("price")
         c.execute(text(f'UPDATE product_list SET Price = "{price}" WHERE Product_Code = "{code}"'))
         c.commit()
-        return render_template("edit_prices.html")
-    return render_template("single_product.html")
+        return render_template("index.html")
+    return render_template("single_product.html", products = prods)
 
 # Change all product prices by a constant percentage either by increasing or decreasing
 @app.route("/percentage", methods = ["GET", "POST"])
@@ -313,9 +396,9 @@ def percentage():
         if not percentage:
             return render_template("Invalid_Choice.html")
         if Type == "Increase":
-            new_percentage = 1 + (int(percentage) / 100)
+            new_percentage = 1 + (float(percentage) / 100.0)
         elif Type == "Decrease":
-            new_percentage = 1 - (int(percentage) / 100)
+            new_percentage = 1 - (float(percentage) / 100.0)
         c.execute(text(f'UPDATE product_list SET Price = Price * {new_percentage}'))
         c.commit()
         return render_template("edit_prices.html")

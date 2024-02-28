@@ -22,6 +22,12 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet"/>
+    <!-- MDB -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.1.0/mdb.min.css"rel="stylesheet"/>
     <style>
         body {
             background-color: #560ba148;
@@ -33,29 +39,40 @@
             margin-top: 50px;
             border-radius: 5px;
         }
-        .table-striped>tbody>tr:nth-child(odd)>td, 
-        .table-striped>tbody>tr:nth-child(odd)>th {
-            background-color: rgba(164, 86, 241, 0.4);
-            color: white;
-        }
     </style>
 </head>
 
 <body>
+    <!-- MDB -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.1.0/mdb.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <div class="container">
-        <div class="text-center">
-            <a href = "/">
-                <img src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=328,h=204,fit=crop/AoPE27RPogUDkbDp/logo-multimedica-sco-01-AR0lwJR8WNHaw5q3.png" class = "rounded" alt="Multimedica"/>
-            </a>
+    <nav class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+            <img href = "/" src="{{url_for('static', filename = 'logo.png')}}" class = "navbar-brand img-fluid" style = "max-width: 15%;" alt="Multimedica"/>
+            <a href = "/logout" class = "btn btn-primary">Logout</a>
         </div>
-        <br>
-        <div class = "box">
-            <h1 class = "text-center">Welcome to Multimedica Quotation Creator</h1>
-            <h3 class = "text-center">How may I assist you today? :)</h3>
+    </nav>
+    <div class="bg-image img-fluid" style="max-width: 100%;">
+        <img src="{{url_for('static', filename = 'welcome.jpg')}}" class="w-100" />
+        <div class="mask">
+            <div class="d-flex align-items-center h-100" style="padding-left: 5%;">
+                <h1 class = "text-black" style="color: black;">Hello, {{ name }}! <br><br><br> How can I help you today?</h1>
+            </div>
         </div>
     </div>
-        {% block body %}{% endblock %}
+    <div class="container-fluid d-flex align-items-center justify-content-center" style="background-color: white; min-height: 10rem;">
+        <div class="row text-center align-items-center flex-fill">
+            <div class="col-4">
+                <a href = "https://multimedicasco.com" target="_blank" class = "btn btn-primary flex-fill" style="background-color: #550BA1;">Visit our website</a>
+            </div>
+            <div class="col-4">
+                <a href = "/task" class = "btn btn-primary flex-fill" style="background-color: #550BA1;">Enter Data</a>
+            </div>
+            <div class="col-4">
+                <a href = "/view" class = "btn btn-primary flex-fill" style="background-color: #550BA1;">View Price List</a>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
