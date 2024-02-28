@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <div class="row text-center">
+            <h1>Quotation Preview</h1>
+        </div>
+        <br>
+        <br>
+        <form action = "/Download" method = "post" id = "product_details">
+            <table class = "table table-striped">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Code</th>
+                        <th>Product Name</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Sum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td style="width: 10%;"><img src="{{url_for('static', filename = entry[0])}}" style="max-width: 100%; height: auto;" onclick="this.requestFullscreen()"></td>
+                            <td style="width: 5%;">{{entry[1]}}</td>
+                            <td style="width: 10%;">{{entry[2]}}</td>
+                            <td >{{entry[3]}}</td>
+                            <td style="width: 10%;">{{entry[4]}}</td>
+                            <td style="width: 10%;">{{entry[5]}}</td>
+                            <td style="width: 10%;">{{entry[6]}}</td>
+                        </tr>
+                        {% endfor %}
+                        
+                </tbody>
+            </table>
+            <div class="row d-flex align-items-center justify-content-center">
+                <a href = "{{url_for('static', filename = 'Resume.pdf')}}" download class="btn btn-primary">Download Quotation</a>
+            </div>
+        </form>
+        <br>
+    </div>
+      
+    
+{% endblock %}

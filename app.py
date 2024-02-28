@@ -12,16 +12,13 @@ import PIL
 
 
 #  Create engine
-
 df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
-Codes = {}
 current_quotation = []
 current_client = {"Date": "",
                    "Customer_Name":"",
                    "Customer_Number":"",
                    "Rep_Name":"",
                    "Rep_Number":"",} 
-customer_info = []
 username = "root"
 password = "13579111315szxM"
 engine = create_engine(
@@ -71,6 +68,9 @@ def index():
     if not session.get("name"):
         return redirect("/login")
     name = session["name"].split(" ")[0]
+    # Clear the current quotation and client info
+    current_quotation.clear()
+    current_client.clear()
     return render_template("index.html", name=name)
 
 @app.route("/login", methods=["GET", "POST"])
@@ -170,6 +170,23 @@ def logout():
     session.clear()
     return redirect("/")
 
+# View the Quotation
+@app.route("/view", methods=["GET", "POST"])
+def view_quotation():
+    entires = [["logo.png", 1, "Product 1", "Description 1", 500, 5, 2500], 
+               ["URL2", 2, "Product 2", "Description 2", 1000, 10, 10000],
+               ["URL3", 3, "Product 3", "Description 3", 1500, 15, 22500],
+               ["URL4", 4, "Product 4", "Description 4", 2000, 20, 40000],
+               ["URL5", 5, "Product 5", "Description 5", 2500, 25, 62500],
+               ["URL6", 6, "Product 6", "Description 6", 3000, 30, 90000],
+               ["URL7", 7, "Product 7", "Description 7", 3500, 35, 122500],]
+    total = 0
+    vat = 0
+    for entry in entires:
+        total += entry[6]
+    vat = total * 0.14
+    total += vat
+    return render_template("view_quotation.html", entries = entires, total = total, vat = vat)
 
 # Tasks page
 @app.route("/task", methods=["GET", "POST"])
