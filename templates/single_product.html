@@ -9,20 +9,25 @@
         <br>
         <form action = "/single_price" method = "post">
             <div class="row">
-                <label for="product_code" class="col-sm-1 col-form-label">Code</label>
+                <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
                 <div class="col-4">
-                    <input name = "code" id = "product_code" type="number" class="form-control" placeholder="Product Code">
+                    <input name = "product_code" id = "product_code" type="text" class="form-control" placeholder="Product Code" value = "0" required>
                 </div>
-                <label for="product_name" class="col-sm-1 col-form-label">Name</label>
+                <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
                 <div class="col-4">
-                    <input name = "name" id = "product_name" type="text" class="form-control" placeholder="Product Name">
+                    <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search..." required>
+                    <datalist id="datalistOptions">
+                        {% for product in products %}
+                            <option id = "product_name" data-tokens= "{{product[1]}}" value = "{{product}}">{{product[1]}}</option>
+                        {% endfor %}    
+                    </datalist>
                 </div>
             </div>
             <br>
             <div class="row">
                 <label for = "Price" class = "col-sm-1 col-form-label">New Price</label>
                 <div class="col-4">
-                    <input type = "number" class = "form-control" placeholder = "New Price" name = "new_price" id = "Price">
+                    <input type = "number" class = "form-control" placeholder = "New Price" name = "price" id = "price">
                 </div>
             </div> 
             <br>
@@ -30,5 +35,37 @@
                 <button type = "submit" class = "btn btn-primary">Submit price edit</button>
             </div>
         </form>
+        <script type = "text/javascript">
+            $(document).on('change', '#product_names_list', function(){
+                var options = $('#datalistOptions')[0].options;
+                for (var i=0;i<options.length;i++){
+                    if (options[i].value == $(this).val()) 
+                        {   
+                            product = options[i].value.slice(1, -1).split(",")
+                            document.getElementById("product_names_list").value = product[1]
+                            console.log(product[1])
+                            document.getElementById("product_code").value = product[0];
+                            console.log(product[0])
+                            break;
+                        }
+                    }
+            });
+            $(document).on('change', '#product_code', function(){
+                var options = $('#datalistOptions')[0].options;
+                for (var i=0;i<options.length;i++){
+                    console.log(options[i].value)
+                    product = options[i].value.slice(1, -1).split(",")
+                    if (product[0] == $(this).val()) 
+                        {   
+                            product = options[i].value.slice(1, -1).split(",")
+                            document.getElementById("product_names_list").value = product[1]
+                            console.log(product[1])
+                            document.getElementById("product_code").value = product[0];
+                            console.log(product[0])
+                            break;
+                        }
+                    }
+            });
+        </script>
     </div>    
 {% endblock %}
