@@ -187,7 +187,7 @@ def logout():
     return redirect("/")
 
 
-# View the Quotation
+""" # View the Quotation
 @app.route("/view", methods=["GET", "POST"])
 def view_quotation():
     entires = [
@@ -207,7 +207,7 @@ def view_quotation():
     total += vat
     return render_template("view_quotation.html", entries=entires, total=total, vat=vat)
 
-
+ """
 # Tasks page
 @app.route("/task", methods=["GET", "POST"])
 def task():
@@ -574,18 +574,6 @@ def view_quotation():
     return render_template("view_quotation.html", entries=entires, total=total, vat=vat)
 
 
-# Table that keeps record of exported files
-# exported_quotations {
-# 	(
-# 		quotation_id: INT INCREMENTAL,
-# 		submission_date: DATETIME,
-# 		employee_id: INT,
-# 		quotation_url: TEXT,
-# 		quotation_file_path: TEXT,
-# 	)
-# }
-
-
 """
 CREATE TABLE `poof_schema`.`exported_quotations` (
   `quotation_id` INT NOT NULL AUTO_INCREMENT,
@@ -598,7 +586,6 @@ CREATE TABLE `poof_schema`.`exported_quotations` (
 """
 
 
-# send data in format submit_quotation_to_db(1, "website.com/view/", "FILE_PATH")
 def submit_quotation_to_db(employee_id: int, quotation) -> bool:
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
@@ -616,8 +603,8 @@ def submit_quotation_to_db(employee_id: int, quotation) -> bool:
     )
     conn.commit()
 
-    # TODO: Add QR code to the Excel
     qr_code = convert_url_to_qr_code(quotation_url)
+    # TODO: Add QR code to the Excel
 
 
     # Save the quotation to the file system
@@ -635,7 +622,7 @@ def update_password(user_name: str, new_password) -> bool:
 
     query = f"UPDATE authorized_personnel SET Password = '{new_hash}' WHERE Employee_Name = '{user_name}'"
     response = conn.execute(text(query))
-
+    conn.commit()
     return (
         response.rowcount == 1
     )  # If the row was updated, return True, else return False
