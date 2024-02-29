@@ -14,7 +14,11 @@ from qrcode.image.styles.moduledrawers.pil import RoundedModuleDrawer
 from qrcode.image.styles.colormasks import RadialGradiantColorMask
 import datetime
 import os
+import pythoncom
+import win32com.client
 
+def initialize_com():
+    pythoncom.CoInitialize()
 
 #  Create engine
 df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
@@ -46,15 +50,8 @@ conn = engine.connect()
 # Connect Flask
 app = Flask(__name__)
 
-# ٌRead the Quotation Template content
-quotation = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
-sheet = quotation.active
-Date_Cell = sheet["I5"]
-Customer_Name_Cell = sheet["A9"]
-Customer_Number_Cell = sheet["C9"]
-Rep_Name_Cell = sheet["A12"]
-Rep_Number_Cell = sheet["C12"]
-Quotation_Number_Cell = sheet["G5"]
+# Read the Quotation Template content
+
 """ 
 # Create a document instance
 quotation_doc = Document()
@@ -85,6 +82,7 @@ def index():
     # Clear the current quotation and client info
     current_quotation.clear()
     current_client.clear()
+    
     return render_template("index.html", name=name)
 
 
@@ -131,7 +129,6 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    # TODO Make a change password page, hashes are great but now I don't know anyone's passwords and can't check them directly
 
     if request.method == "POST":
         # Get username and password and authority level
@@ -384,16 +381,30 @@ def submit():
         # Clear the current quotation and client info
         current_quotation.clear()
         current_client.clear()
-        Number = 1
+        no_of_quotations = conn.execute(
+        text("SELECT MAX(quotation_id) FROM exported_quotations")
+        ).all()[0][0]
+        if not no_of_quotations:
+            no_of_quotations = 0
+        quotation_id = no_of_quotations + 1
+        # Open Template file
+        quotation = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
+        sheet = quotation.active
+        Date_Cell = sheet["I5"]
+        Customer_Name_Cell = sheet["A9"]
+        Customer_Number_Cell = sheet["C9"]
+        Rep_Name_Cell = sheet["A12"]
+        Rep_Number_Cell = sheet["C12"]
+        Quotation_Number_Cell = sheet["G5"]
         # Add the client data to the quotation template
         Date_Cell.value = client_data["Date"][0]
         Customer_Name_Cell.value = client_data["Customer_Name"][0]
         Customer_Number_Cell.value = client_data["Customer_Number"][0]
         Rep_Name_Cell.value = client_data["Rep_Name"][0]
         Rep_Number_Cell.value = client_data["Rep_Number"][0]
-        Quotation_Number_Cell.value = Number
+        Quotation_Number_Cell.value = quotation_id
         # Add the product data to the quotation template
-        rows = sheet.iter_rows(
+        rows = sheet.   iter_rows(
             min_row=14, max_row=14 + len(product_data), min_col=1, max_col=9
         )
         print("Rows: ", rows)
@@ -406,7 +417,7 @@ def submit():
             row[7].value = product_data["Price"][i]
             row[8].value = product_data["Total"][i]
 
-        submit_quotation_to_db(session["user_id"], quotation)
+        submit_quotation_to_db(session["user_id"], quotation, sheet)
 
         # quotation.save(filename=f"Quotation_{Number}.xlsx")
 
@@ -452,7 +463,6 @@ def submit():
         quotation_doc.add_page_break()
         quotation_doc.save(f'Quotation_{Number}.docx')
         """
-        # TODO Export the quotation to the database and save the pdf to the database
         # Clear Dataframes
         client_data = pd.DataFrame()
         product_data = pd.DataFrame()
@@ -546,56 +556,61 @@ def add_product():
 @app.route("/view", methods=["GET"])  # expection a url/view?quotation_id=1
 def view_quotation():
     quotation_id = request.args.get("quotation_id")
-
-    file_path = conn.execute(
-        text(
-            f"SELECT quotation_file_path FROM exported_quotations WHERE quotation_id = {quotation_id}"
-        )
-    ).all()[0][0]
-
+    
     ## TODO: Read the excel and put the values into the entries variable
-    df = pd.read_excel(file_path)
-
-    entires = [
-        ["logo.png", 1, "Product 1", "Description 1", 500, 5, 2500],
-        ["URL2", 2, "Product 2", "Description 2", 1000, 10, 10000],
-        ["URL3", 3, "Product 3", "Description 3", 1500, 15, 22500],
-        ["URL4", 4, "Product 4", "Description 4", 2000, 20, 40000],
-        ["URL5", 5, "Product 5", "Description 5", 2500, 25, 62500],
-        ["URL6", 6, "Product 6", "Description 6", 3000, 30, 90000],
-        ["URL7", 7, "Product 7", "Description 7", 3500, 35, 122500],
-    ]
+    path = f"quotations/{quotation_id}.xlsx"
+    path = os.path.abspath(path)
+    requested_quotation = openpyxl.load_workbook(path)
+    sheet = requested_quotation.active
+    Date_Cell = sheet["I5"]
+    Customer_Name_Cell = sheet["A9"]
+    Customer_Number_Cell = sheet["C9"]
+    Rep_Name_Cell = sheet["A12"]
+    Rep_Number_Cell = sheet["C12"]
+    Quotation_Number_Cell = sheet["G5"]
+    client_data = {"Date": None,
+                   "Customer_Name": None,
+                   "Customer_Number": None,
+                   "Rep_Name": None,
+                   "Rep_Number": None}
+    client_data["Date"] = Date_Cell.value
+    client_data["Customer_Name"] = Customer_Name_Cell.value
+    client_data["Customer_Number"] = Customer_Number_Cell.value
+    client_data["Rep_Name"] = Rep_Name_Cell.value
+    client_data["Rep_Number"] = Rep_Number_Cell.value  
+    entries = []
+    rows = sheet.iter_rows(min_row=14, max_row = 21, min_col=1, max_col=9)
+    print("Rows: ", rows)
+    for i, row in enumerate(rows):
+        if not row[0].value:
+            break
+        quantity = row[6].value
+        product_name = row[0].value
+        description = row[2].value
+        price = row[7].value
+        total = row[8].value
+        entries.append([f"{product_name}.png", product_name, description, price, quantity, total])
     total = 0
     vat = 0
-    for entry in entires:
-        total += entry[6]
+    print(f"Entries are {entries}")
+    for entry in entries:
+        total += entry[5]
     vat = total * 0.14
     total += vat
-    return render_template("view_quotation.html", entries=entires, total=total, vat=vat)
+    return render_template("view_quotation.html", entries=entries, total=total, vat=vat)
 
 
-"""
-CREATE TABLE `poof_schema`.`exported_quotations` (
-  `quotation_id` INT NOT NULL AUTO_INCREMENT,
-  `submission_date` DATETIME NOT NULL,
-  `employee_id` INT NOT NULL,
-  `quotation_url` VARCHAR(255) NOT NULL,
-  `quotation_file_path` VARCHAR(255) NOT NULL,
-  PRIMARY KEY (`quotation_id`)
-);
-"""
-
-
-def submit_quotation_to_db(employee_id: int, quotation) -> bool:
+def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
     ).all()[0][0]
-
+    if not no_of_quotations:
+        no_of_quotations = 0
     quotation_id = no_of_quotations + 1
     submission_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
     quotation_file_path = os.path.join(quotation_dir, f"{quotation_id}.xlsx")
-
+    pdf_file_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
     conn.execute(
         text(
             f"INSERT INTO exported_quotations(submission_date, employee_id, quotation_url, quotation_file_path) VALUES ('{submission_date}', {employee_id}, '{quotation_url}', '{quotation_file_path}')"
@@ -604,14 +619,45 @@ def submit_quotation_to_db(employee_id: int, quotation) -> bool:
     conn.commit()
 
     qr_code = convert_url_to_qr_code(quotation_url)
-    # TODO: Add QR code to the Excel
-
+    path = f"{quotation_dir}/{quotation_id}.png"
+    qr_code = qr_code.save(path, "PNG")
+    print(type(qr_code))
+    print(path)
+    # Add QR code to the Excel
+    
+    img = openpyxl.drawing.image.Image(path)
+    img.anchor = 'C24'
+    img.height = 100
+    img.width = 100
+    sheet.add_image(img)
 
     # Save the quotation to the file system
     quotation.save(filename=quotation_file_path)
 
     # TODO: Convert the excel to pdf and save as quotation_dir/quotation_id.pdf
+    # Open Microsoft Excel
 
+    quotation_file_path = os.path.abspath(quotation_file_path)
+    pdf_file_path = os.path.abspath(pdf_file_path)
+        
+    initialize_com()
+    excel = win32com.client.Dispatch("Excel.Application")
+    excel.Visible = False
+
+    sheets = excel.Workbooks.Open(quotation_file_path)
+    work_sheets = sheets.Worksheets[0]
+    
+    # Convert into PDF File 
+    work_sheets.ExportAsFixedFormat(0, pdf_file_path) 
+
+
+    """ excel = client.Dispatch("Excel.Application")    
+    # Read Excel File
+    sheets = excel.Workbooks.Open(quotation_file_path)
+    work_sheets = sheets.Worksheets[0]
+
+    # Convert into PDF file
+    work_sheets.ExportAsFixedFormat(0, pdf_file_path) """
     return True
 
 
@@ -647,7 +693,7 @@ def convert_url_to_qr_code(url: str, rounded_corners=True, logo_path=None) -> PI
         img = qr.make_image(image_factory=StyledPilImage, embeded_image_path=logo_path)
     else:
         img = qr.make_image()
-
+    print(type(img))
     return img
 
 
