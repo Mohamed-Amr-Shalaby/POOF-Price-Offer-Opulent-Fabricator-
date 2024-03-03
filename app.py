@@ -599,6 +599,30 @@ def view_quotation():
     total += vat
     return render_template("view_quotation.html", entries=entries, total=total, vat=vat)
 
+@app.route("/price_list", methods=["GET", "POST"])
+def price_list():
+    prods = conn.execute(
+            text(
+                f"SELECT product_code, product_name FROM product_list"
+            )
+        )
+    products = prods.all()
+    conn.commit()
+    if request.method == "POST":
+        code = request.form.get("product_code")
+        prods = conn.execute(
+            text(
+                f"SELECT product_code, product_name, price FROM product_list WHERE product_code = '{code}'"
+            )
+        )
+        data = prods.all()
+        if len(data) > 0:
+            plist = [[data[0][0], data[0][1], data[0][2]]]
+        conn.commit()
+        
+        return render_template("price_list.html", plist = plist, products = products)
+    return render_template("price_list.html", products = products)
+
 
 def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     no_of_quotations = conn.execute(
@@ -695,6 +719,7 @@ def convert_url_to_qr_code(url: str, rounded_corners=True, logo_path=None) -> PI
         img = qr.make_image()
     print(type(img))
     return img
+
 
 
 """ 

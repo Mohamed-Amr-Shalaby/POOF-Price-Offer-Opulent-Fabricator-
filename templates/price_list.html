@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <div class="row text-center">
+            <h1>Create a new Quotation</h1>
+        </div>
+        <br>
+        <hr>
+        <br>
+        <form action = "/price_list" method = "post" id = "product_details">
+            <div class = "row text-center">
+                <h1>Product Details</h1>
+            </div>
+            <br>
+            <div class="row">
+                <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
+                <div class="col-4">
+                    <input name = "product_code" id = "product_code" type="text" class="form-control" placeholder="Product Code" value = "0" required>
+                </div>
+                <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
+                <div class="col-4">
+                    <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search..." required>
+                    <datalist id="datalistOptions">
+                        {% for product in products %}
+                            <option id = "product_name" data-tokens= "{{product[1]}}" value = "{{product}}">{{product[1]}}</option>
+                        {% endfor %}    
+                    </datalist>
+                </div>
+            </div> 
+            <br>
+            <div class="row">
+                <button type = "submit" class = "btn btn-primary">Search</button>
+            </div>
+        </form>
+        <script type = "text/javascript">
+            $(document).on('change', '#product_names_list', function(){
+                var options = $('#datalistOptions')[0].options;
+                for (var i=0;i<options.length;i++){
+                    if (options[i].value == $(this).val()) 
+                        {   
+                            product = options[i].value.slice(1, -1).split(",")
+                            document.getElementById("product_names_list").value = product[1]
+                            document.getElementById("product_code").value = product[0];
+                            break;
+                        }
+                    }
+            });
+            $(document).on('change', '#product_code', function(){
+                var options = $('#datalistOptions')[0].options;
+                for (var i=0;i<options.length;i++){
+                    console.log(options[i].value)
+                    product = options[i].value.slice(1, -1).split(",")
+                    if (product[0] == $(this).val()) 
+                        {   
+                            product = options[i].value.slice(1, -1).split(",")
+                            document.getElementById("product_names_list").value = product[1]
+                            document.getElementById("product_code").value = product[0];
+                            break;
+                        }
+                    }
+            });
+        </script>   
+        <hr>
+        <br>
+        <br>
+        <div class="row text-center">
+            <h1>Output Table</h1>
+        </div>
+        <br>
+        <table class = "table table-striped">
+            <thead>
+                <tr>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                    {% for product in plist %}
+                    <tr>
+                        <td>{{product[0]}}</td>
+                        <td>{{product[1]}}</td>
+                        <td>{{product[2]}}</td>
+                    </tr>
+                    {% endfor %}
+                    
+            </tbody>
+        </table>
+    </div>
+      
+    
+{% endblock %}
