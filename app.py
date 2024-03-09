@@ -17,8 +17,12 @@ import os
 import pythoncom
 import win32com.client
 
+# TODO: Learn what a logger is. (python logging module)
+
+
 def initialize_com():
     pythoncom.CoInitialize()
+
 
 #  Create engine
 df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
@@ -30,6 +34,9 @@ current_client = {
     "Rep_Name": "",
     "Rep_Number": "",
 }
+
+# TODO: Use python-dotenv to store sensitive information in a .env file
+
 username = "root"
 password = "13579111315szxM"
 quotation_dir = "quotations"
@@ -80,9 +87,9 @@ def index():
         return redirect("/login")
     name = session["name"].split(" ")[0]
     # Clear the current quotation and client info
-    current_quotation.clear()
+    current_quotation.clear()  # TODO: IDK man.. do somthing
     current_client.clear()
-    
+
     return render_template("index.html", name=name)
 
 
@@ -96,6 +103,7 @@ def login():
             print(session.get("access_level"))
             return render_template("index.html")
         return render_template("signIn.html")
+
     elif request.method == "POST":
         # Get username and password
         name = request.form.get("Username")
@@ -184,58 +192,35 @@ def logout():
     return redirect("/")
 
 
-""" # View the Quotation
-@app.route("/view", methods=["GET", "POST"])
-def view_quotation():
-    entires = [
-        ["logo.png", 1, "Product 1", "Description 1", 500, 5, 2500],
-        ["URL2", 2, "Product 2", "Description 2", 1000, 10, 10000],
-        ["URL3", 3, "Product 3", "Description 3", 1500, 15, 22500],
-        ["URL4", 4, "Product 4", "Description 4", 2000, 20, 40000],
-        ["URL5", 5, "Product 5", "Description 5", 2500, 25, 62500],
-        ["URL6", 6, "Product 6", "Description 6", 3000, 30, 90000],
-        ["URL7", 7, "Product 7", "Description 7", 3500, 35, 122500],
-    ]
-    total = 0
-    vat = 0
-    for entry in entires:
-        total += entry[6]
-    vat = total * 0.14
-    total += vat
-    return render_template("view_quotation.html", entries=entires, total=total, vat=vat)
-
- """
 # Tasks page
 @app.route("/task", methods=["GET", "POST"])
 def task():
     if request.method == "GET":
-        if session["access_level"] == "Developer":
-            return render_template("admin_options.html")
-        elif session["access_level"] == "Administrator":
-            return render_template("admin_options.html")
-        elif session["access_level"] == "Data_Entry":
-            return render_template("customer_info.html")
-        return render_template("Invalid_Credentials.html")
+
+        match session["access_level"]:
+            case "Developer":
+                return render_template("admin_options.html")
+            case "Administrator":
+                return render_template("admin_options.html")
+            case "Data_Entry":
+                return render_template("customer_info.html")
+            case _:
+                return render_template("Invalid_Credentials.html")
+
     elif request.method == "POST":
         choice = request.form.get("task")
         # print(choice)
-        rows = conn.execute(
-            text(
-                f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"
-            )
-        )
-        prods = rows.all()
-        if choice == "Create_quotation":
-            # print(type(prods))
-            return render_template("customer_info.html")
-        elif choice == "Edit product prices":
-            return render_template("edit_prices.html")
-        elif choice == "Add new product":
-            return render_template("add_product.html")
-        elif choice == "Add Employee":
-            return render_template("register.html")
-        else:
-            return render_template("Invalid_Choice.html")
+        match choice:
+            case "Create_quotation":
+                return render_template("customer_info.html")
+            case "Edit product prices":
+                return render_template("edit_prices.html")
+            case "Add new product":
+                return render_template("add_product.html")
+            case "Add Employee":
+                return render_template("register.html")
+            case _:
+                return render_template("Invalid_Choice.html")
 
 
 @app.route("/customer_info", methods=["GET", "POST"])
@@ -246,6 +231,7 @@ def Customer_Info():
         current_client["Customer_Number"] = request.form.get("customer_number")
         current_client["Rep_Name"] = request.form.get("rep_name")
         current_client["Rep_Number"] = request.form.get("rep_number")
+
         rows = conn.execute(
             text(
                 f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"
@@ -265,8 +251,8 @@ def Customer_Info():
     pass
 
 
-@app.route("/Edit_Quotation", methods=["GET", "POST"])
-def Edit_Quotation():
+@app.route("/edit_quotation", methods=["GET", "POST"])
+def edit_quotation():
     if request.method == "POST":
         rows = conn.execute(
             text(
@@ -282,6 +268,9 @@ def Edit_Quotation():
         )
 
 
+# TODO: FIX THE RANDOMIZED CASE IN PAGE ROUTES
+
+
 # Create Quotation Page and handling Queries, autocomplete, and dynamic table row insertion
 @app.route("/Create_Quotation", methods=["GET", "POST"])
 def Create_Quotation():
@@ -289,31 +278,29 @@ def Create_Quotation():
         # Get the product code and quantity from the submitted form
         code = request.form.get("product_code")
         quantity = request.form.get("quantity")
-        quantity = float(quantity)
+        quantity = float(quantity)  # TODO: validate that quantity is not None
         rows = conn.execute(
             text(f"SELECT * FROM product_list WHERE product_code = '{code}'")
         )
         prod = rows.all()
         # redo the sql table and replace it with a list of lists in the frontend instead of a SQL table
-        if len(prod) > 0:
-            current_quotation.append(
-                [
-                    prod[0][4],
-                    prod[0][0],
-                    prod[0][1],
-                    prod[0][3],
-                    quantity,
-                    prod[0][2],
-                    prod[0][2] * quantity,
-                ]
-            )
-        else:
-            render_template("insufficient_data.html")
-        """ print(prod[0][0])
-        print(prod[0][1])
-        print(prod[0][2])
-        print(prod[0][3])
-        print(prod[0][4]) """
+
+        if len(prod) == 0 or prod is None:
+            return render_template("insufficient_data.html")
+
+        ## TODO: Addd comments on wtf this does
+        current_quotation.append(
+            [
+                prod[0][4],
+                prod[0][0],
+                prod[0][1],
+                prod[0][3],
+                quantity,
+                prod[0][2],
+                prod[0][2] * quantity,
+            ]
+        )
+
         rows = conn.execute(
             text(
                 f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"
@@ -344,130 +331,134 @@ def preview():
 # Convert the current quotation to a dataframe, submit it to the database, and export it as an excel file
 @app.route("/export", methods=["GET", "POST"])
 def submit():
-    if request.method == "POST":
-        client_columns = [
-            "Date",
-            "Customer_Name",
-            "Customer_Number",
-            "Rep_Name",
-            "Rep_Number",
+    # TODO: Break this down into atomic functions
+
+    if request.method == "GET":
+        pass
+
+    client_columns = [
+        "Date",
+        "Customer_Name",
+        "Customer_Number",
+        "Rep_Name",
+        "Rep_Number",
+    ]
+    product_columns = [
+        "Image",
+        "Product_Code",
+        "Product_Name",
+        "Description",
+        "Quantity",
+        "Price",
+        "Total",
+    ]
+
+    client_list = [
+        [
+            current_client["Date"],
+            current_client["Customer_Name"],
+            current_client["Customer_Number"],
+            current_client["Rep_Name"],
+            current_client["Rep_Number"],
         ]
-        product_columns = [
-            "Image",
-            "Product_Code",
-            "Product_Name",
-            "Description",
-            "Quantity",
-            "Price",
-            "Total",
-        ]
-        client_list = [
-            [
-                current_client["Date"],
-                current_client["Customer_Name"],
-                current_client["Customer_Number"],
-                current_client["Rep_Name"],
-                current_client["Rep_Number"],
-            ]
-        ]
-        client_data = pd.DataFrame(client_list, columns=client_columns)
-        product_data = pd.DataFrame(current_quotation, columns=product_columns)
-        # Export the dataframes to an Excel file, then save the file as a pdf
-        # and save the pdf to the database alongside the name of the user and the date of submission
-        # Add serializtion to the quotation files
-        """ with pd.ExcelWriter("D:/Work/POOF/Quotation.xlsx") as writer:
-            client_data.to_excel(writer, sheet_name = "Client_Info", index = True)
-            product_data.to_excel(writer, sheet_name = "Product_Info", index = True) """
-        # Clear the current quotation and client info
-        current_quotation.clear()
-        current_client.clear()
-        no_of_quotations = conn.execute(
+    ]
+    client_data = pd.DataFrame(client_list, columns=client_columns)
+    product_data = pd.DataFrame(current_quotation, columns=product_columns)
+    # Export the dataframes to an Excel file, then save the file as a pdf
+    # and save the pdf to the database alongside the name of the user and the date of submission
+    # Add serializtion to the quotation files
+    """ with pd.ExcelWriter("D:/Work/POOF/Quotation.xlsx") as writer:
+        client_data.to_excel(writer, sheet_name = "Client_Info", index = True)
+        product_data.to_excel(writer, sheet_name = "Product_Info", index = True) """
+    # Clear the current quotation and client info
+    current_quotation.clear()
+    current_client.clear()
+    no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
-        ).all()[0][0]
-        if not no_of_quotations:
-            no_of_quotations = 0
-        quotation_id = no_of_quotations + 1
-        # Open Template file
-        quotation = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
-        sheet = quotation.active
-        Date_Cell = sheet["I5"]
-        Customer_Name_Cell = sheet["A9"]
-        Customer_Number_Cell = sheet["C9"]
-        Rep_Name_Cell = sheet["A12"]
-        Rep_Number_Cell = sheet["C12"]
-        Quotation_Number_Cell = sheet["G5"]
-        # Add the client data to the quotation template
-        Date_Cell.value = client_data["Date"][0]
-        Customer_Name_Cell.value = client_data["Customer_Name"][0]
-        Customer_Number_Cell.value = client_data["Customer_Number"][0]
-        Rep_Name_Cell.value = client_data["Rep_Name"][0]
-        Rep_Number_Cell.value = client_data["Rep_Number"][0]
-        Quotation_Number_Cell.value = quotation_id
-        # Add the product data to the quotation template
-        rows = sheet.   iter_rows(
-            min_row=14, max_row=14 + len(product_data), min_col=1, max_col=9
-        )
-        print("Rows: ", rows)
-        for i, row in enumerate(rows):
-            if i == len(product_data):
-                break
-            row[6].value = product_data["Quantity"][i]
-            row[0].value = product_data["Product_Name"][i]
-            row[2].value = product_data["Description"][i]
-            row[7].value = product_data["Price"][i]
-            row[8].value = product_data["Total"][i]
+    ).all()[0][0]
+    if not no_of_quotations:
+        no_of_quotations = 0
+    quotation_id = no_of_quotations + 1
+    # Open Template file
+    quotation = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
+    sheet = quotation.active
+    Date_Cell = sheet["I5"]
+    Customer_Name_Cell = sheet["A9"]
+    Customer_Number_Cell = sheet["C9"]
+    Rep_Name_Cell = sheet["A12"]
+    Rep_Number_Cell = sheet["C12"]
+    Quotation_Number_Cell = sheet["G5"]
+    # Add the client data to the quotation template
+    Date_Cell.value = client_data["Date"][0]
+    Customer_Name_Cell.value = client_data["Customer_Name"][0]
+    Customer_Number_Cell.value = client_data["Customer_Number"][0]
+    Rep_Name_Cell.value = client_data["Rep_Name"][0]
+    Rep_Number_Cell.value = client_data["Rep_Number"][0]
+    Quotation_Number_Cell.value = quotation_id
+    # Add the product data to the quotation template
+    rows = sheet.iter_rows(
+        min_row=14, max_row=14 + len(product_data), min_col=1, max_col=9
+    )
+    print("Rows: ", rows)
+    for i, row in enumerate(rows):
+        if i == len(product_data):
+            break
+        row[6].value = product_data["Quantity"][i]
+        row[0].value = product_data["Product_Name"][i]
+        row[2].value = product_data["Description"][i]
+        row[7].value = product_data["Price"][i]
+        row[8].value = product_data["Total"][i]
 
-        submit_quotation_to_db(session["user_id"], quotation, sheet)
+    submit_quotation_to_db(session["user_id"], quotation, sheet)
 
-        # quotation.save(filename=f"Quotation_{Number}.xlsx")
+    # quotation.save(filename=f"Quotation_{Number}.xlsx")
 
-        """ 
-        #Add Title
-        quotation_doc.add_heading(f"Quotation No. {Number}", 0)
-        # Add Paragraphs
-        p = quotation_doc.add_paragraph("Date: ")
-        p.add_run(client_data["Date"][0])
-        p = quotation_doc.add_paragraph("Customer Name: ")
-        p.add_run(client_data["Customer_Name"][0])
-        p = quotation_doc.add_paragraph("Customer Number: ")
-        p.add_run(client_data["Customer_Number"][0])
-        p = quotation_doc.add_paragraph("Rep Name: ")
-        p.add_run(client_data["Rep_Name"][0])
-        p = quotation_doc.add_paragraph("Rep Number: ")
-        p.add_run(client_data["Rep_Number"][0])
-        
-        # Add QR Code of Quotation
-        quotation_doc.add_picture("D:/Work/POOF/qr_code.png", width=Cm(3.0), height=Cm(3.0))
+    """ 
+    #Add Title
+    quotation_doc.add_heading(f"Quotation No. {Number}", 0)
+    # Add Paragraphs
+    p = quotation_doc.add_paragraph("Date: ")
+    p.add_run(client_data["Date"][0])
+    p = quotation_doc.add_paragraph("Customer Name: ")
+    p.add_run(client_data["Customer_Name"][0])
+    p = quotation_doc.add_paragraph("Customer Number: ")
+    p.add_run(client_data["Customer_Number"][0])
+    p = quotation_doc.add_paragraph("Rep Name: ")
+    p.add_run(client_data["Rep_Name"][0])
+    p = quotation_doc.add_paragraph("Rep Number: ")
+    p.add_run(client_data["Rep_Number"][0])
+    
+    # Add QR Code of Quotation
+    quotation_doc.add_picture("D:/Work/POOF/qr_code.png", width=Cm(3.0), height=Cm(3.0))
 
-        # Add Table
-        table = quotation_doc.add_table(rows=1, cols=7)
-        hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = "Image"
-        hdr_cells[1].text = "Product Code"
-        hdr_cells[2].text = "Product Name"
-        hdr_cells[3].text = "Description"
-        hdr_cells[4].text = "Quantity"
-        hdr_cells[5].text = "Price"
-        hdr_cells[6].text = "Total"
-        for i in range(len(product_data)):
-            row_cells = table.add_row().cells
-            print(f"Product Code is: {product_data["Product_Code"][i]}")
-            print(i)
-            row_cells[0].text = str(product_data["Image"][i])
-            row_cells[1].text = str(product_data["Product_Code"][i])
-            row_cells[2].text = str(product_data["Product_Name"][i])
-            row_cells[3].text = str(product_data["Description"][i])
-            row_cells[4].text = str(product_data["Quantity"][i])
-            row_cells[5].text = str(product_data["Price"][i])
-            row_cells[6].text = str(product_data["Total"][i])
-        quotation_doc.add_page_break()
-        quotation_doc.save(f'Quotation_{Number}.docx')
-        """
-        # Clear Dataframes
-        client_data = pd.DataFrame()
-        product_data = pd.DataFrame()
-        return render_template("successful_submission.html"), {"Refresh": "5; url=/"}
-    pass
+    # Add Table
+    table = quotation_doc.add_table(rows=1, cols=7)
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = "Image"
+    hdr_cells[1].text = "Product Code"
+    hdr_cells[2].text = "Product Name"
+    hdr_cells[3].text = "Description"
+    hdr_cells[4].text = "Quantity"
+    hdr_cells[5].text = "Price"
+    hdr_cells[6].text = "Total"
+    for i in range(len(product_data)):
+        row_cells = table.add_row().cells
+        print(f"Product Code is: {product_data["Product_Code"][i]}")
+        print(i)
+        row_cells[0].text = str(product_data["Image"][i])
+        row_cells[1].text = str(product_data["Product_Code"][i])
+        row_cells[2].text = str(product_data["Product_Name"][i])
+        row_cells[3].text = str(product_data["Description"][i])
+        row_cells[4].text = str(product_data["Quantity"][i])
+        row_cells[5].text = str(product_data["Price"][i])
+        row_cells[6].text = str(product_data["Total"][i])
+    quotation_doc.add_page_break()
+    quotation_doc.save(f'Quotation_{Number}.docx')
+    """
+    # Clear Dataframes
+    client_data = pd.DataFrame()
+    product_data = pd.DataFrame()
+    return render_template("successful_submission.html"), {"Refresh": "5; url=/"}
 
 
 # Create Page that allows admins to change the price of products
@@ -479,13 +470,14 @@ def price():
         )
     )
     prods = rows.all()
-    if request.method == "POST":
-        choice = request.form.get("price")
-        if choice == "single_product":
-            return render_template("single_product.html", products=prods)
-        elif choice == "percentage":
-            return render_template("percentage.html")
-    return render_template("edit_prices.html")
+    if request.method == "GET":
+        return render_template("edit_prices.html")
+
+    choice = request.form.get("price")
+    if choice == "single_product":
+        return render_template("single_product.html", products=prods)
+    elif choice == "percentage":
+        return render_template("percentage.html")
 
 
 # Change the price of a single product
@@ -556,10 +548,11 @@ def add_product():
 @app.route("/view", methods=["GET"])  # expection a url/view?quotation_id=1
 def view_quotation():
     quotation_id = request.args.get("quotation_id")
-    
+
     ## TODO: Read the excel and put the values into the entries variable
-    path = f"quotations/{quotation_id}.xlsx"
+    path = os.path.join(quotation_dir, f"{quotation_id}.xlsx")
     path = os.path.abspath(path)
+
     requested_quotation = openpyxl.load_workbook(path)
     sheet = requested_quotation.active
     Date_Cell = sheet["I5"]
@@ -568,18 +561,23 @@ def view_quotation():
     Rep_Name_Cell = sheet["A12"]
     Rep_Number_Cell = sheet["C12"]
     Quotation_Number_Cell = sheet["G5"]
-    client_data = {"Date": None,
-                   "Customer_Name": None,
-                   "Customer_Number": None,
-                   "Rep_Name": None,
-                   "Rep_Number": None}
+
+    client_data = {
+        "Date": None,
+        "Customer_Name": None,
+        "Customer_Number": None,
+        "Rep_Name": None,
+        "Rep_Number": None,
+    }
+
     client_data["Date"] = Date_Cell.value
     client_data["Customer_Name"] = Customer_Name_Cell.value
     client_data["Customer_Number"] = Customer_Number_Cell.value
     client_data["Rep_Name"] = Rep_Name_Cell.value
-    client_data["Rep_Number"] = Rep_Number_Cell.value  
+    client_data["Rep_Number"] = Rep_Number_Cell.value
+
     entries = []
-    rows = sheet.iter_rows(min_row=14, max_row = 21, min_col=1, max_col=9)
+    rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=9)
     print("Rows: ", rows)
     for i, row in enumerate(rows):
         if not row[0].value:
@@ -589,7 +587,10 @@ def view_quotation():
         description = row[2].value
         price = row[7].value
         total = row[8].value
-        entries.append([f"{product_name}.png", product_name, description, price, quantity, total])
+        entries.append(
+            [f"{product_name}.png", product_name, description, price, quantity, total]
+        )
+
     total = 0
     vat = 0
     print(f"Entries are {entries}")
@@ -597,17 +598,16 @@ def view_quotation():
         total += entry[5]
     vat = total * 0.14
     total += vat
+
     return render_template("view_quotation.html", entries=entries, total=total, vat=vat)
+
 
 @app.route("/price_list", methods=["GET", "POST"])
 def price_list():
-    prods = conn.execute(
-            text(
-                f"SELECT product_code, product_name FROM product_list"
-            )
-        )
+    prods = conn.execute(text(f"SELECT product_code, product_name FROM product_list"))
     products = prods.all()
     conn.commit()
+
     if request.method == "POST":
         code = request.form.get("product_code")
         prods = conn.execute(
@@ -619,9 +619,9 @@ def price_list():
         if len(data) > 0:
             plist = [[data[0][0], data[0][1], data[0][2]]]
         conn.commit()
-        
-        return render_template("price_list.html", plist = plist, products = products)
-    return render_template("price_list.html", products = products)
+
+        return render_template("price_list.html", plist=plist, products=products)
+    return render_template("price_list.html", products=products)
 
 
 def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
@@ -630,6 +630,7 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     ).all()[0][0]
     if not no_of_quotations:
         no_of_quotations = 0
+
     quotation_id = no_of_quotations + 1
     submission_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
@@ -648,9 +649,9 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     print(type(qr_code))
     print(path)
     # Add QR code to the Excel
-    
+
     img = openpyxl.drawing.image.Image(path)
-    img.anchor = 'C24'
+    img.anchor = "C24"
     img.height = 100
     img.width = 100
     sheet.add_image(img)
@@ -663,17 +664,16 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
 
     quotation_file_path = os.path.abspath(quotation_file_path)
     pdf_file_path = os.path.abspath(pdf_file_path)
-        
+
     initialize_com()
     excel = win32com.client.Dispatch("Excel.Application")
     excel.Visible = False
 
     sheets = excel.Workbooks.Open(quotation_file_path)
     work_sheets = sheets.Worksheets[0]
-    
-    # Convert into PDF File 
-    work_sheets.ExportAsFixedFormat(0, pdf_file_path) 
 
+    # Convert into PDF File
+    work_sheets.ExportAsFixedFormat(0, pdf_file_path)
 
     """ excel = client.Dispatch("Excel.Application")    
     # Read Excel File
@@ -719,70 +719,3 @@ def convert_url_to_qr_code(url: str, rounded_corners=True, logo_path=None) -> PI
         img = qr.make_image()
     print(type(img))
     return img
-
-
-
-""" 
-# Unused Route, replaced, delete later
-@app.route("/query", methods=["GET", "POST"])
-def query():
-    if request.method == "GET":
-        return render_template("Create_Quotation.html")
-    elif request.method == "POST":
-        code = request.form.get("product_code")
-        name = request.form.get("product_name")
-        print(name)
-        print(code)
-        quantity = request.form.get("quantity")
-        print(quantity)
-        if (not code and not name) or not quantity:
-            return render_template("insufficient_data.html")
-        product_details = get_product(code, name, quantity)
-
-        return render_template("Create_Quotation.html", product_details=product_details, quantity=quantity)
- """
-
-
-"""
-# Unused Route, replaced, delete later
-def get_date():
-    print("Please enter the date: ")
-    date = input()
-    return date
- """
-
-""" 
-# Unused Route, replaced, delete later
-def get_product(code, name, quantity):
-    pname = name
-    pcode = code
-    
-    if not pcode:
-        pcode = c.execute(text(f"SELECT Product_Code FROM product_list WHERE Product_Name = '{pname}'"))
-        pcode = pcode.all()
-    if not pname:
-        pname = c.execute(text(f"SELECT Product_Name FROM product_list WHERE Product_Code = '{pcode}'"))
-        pname = pname.all()
-    pprice = c.execute(text(f"SELECT Price FROM product_list WHERE product_code = '{pcode}'"))
-    pprice = pprice.all()
-
-    pdescription = c.execute(text(f"SELECT Description FROM product_list WHERE product_code = '{pcode}'"))
-    pdescription = pdescription.all()
-    pimg_dir = c.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_code = '{pcode}'"))
-    pimg_dir = pimg_dir.all()
-    product = [pimg_dir, pcode, pname, pdescription, quantity, pprice]
-    return product
- """
-""" 
-# Unused Route, replaced, delete later
-def get_quantity():
-    print("Please enter the quantity: ")
-    quantity = input()
-    return quantity
- """
-""" 
-# Unused Route, replaced, delete later
-def get_client_name():
-    print("Please enter the client name: ")
-    client = input()
-    return client """
