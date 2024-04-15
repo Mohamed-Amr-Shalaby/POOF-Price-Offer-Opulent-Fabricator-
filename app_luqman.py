@@ -101,22 +101,22 @@ def index():
         # Ensure username and password were submitted
         if not name or not Pass:
             print("Name or Pass is empty")
-            return render_template("Invalid_Credentials.html", name=name, Pass=Pass)
+            return render_template("invalid_credentials.html", name=name, Pass=Pass)
 
         # Ensure username exists and password is correct
         if len(authority) != 1 or not check_password_hash(authority[0][2], Pass):
             print("Wrong name or wrong Password")
-            return render_template("Invalid_Credentials.html", authority=authorityres)
+            return render_template("invalid_credentials.html", authority=authorityres)
 
         # Redirect user to appropriate page depending on the authority level
         if authority[0][3] == "Administrator":
             return render_template("admin_options.html")
         elif authority[0][3] == "Data_Entry":
-            return render_template("Create_Quotation.html")
+            return render_template("create_quotation.html")
         elif authority[0][3] == "Developer":
             return render_template("Developer_Options.html")
         else:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -133,11 +133,11 @@ def register():
         hash = generate_password_hash(password, method="pbkdf2", salt_length=16)
         # print(hash)
         if not name:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
         # Ensure password was submitted
         elif not password:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
         # Query database for username
         # TODO Protect against SQL injection
@@ -148,10 +148,10 @@ def register():
 
         # Ensure username exists and password is correct
         if len(rows) != 0:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
         if password != Cpassword:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
         # TODO Protect against SQL injection
         conn.execute(
@@ -183,7 +183,7 @@ def task():
             )
         )
         prods = rows.all()
-        if choice == "Create_quotation":
+        if choice == "create_quotation":
             # print(type(prods))
             return render_template("customer_info.html")
         elif choice == "Edit product prices":
@@ -193,7 +193,7 @@ def task():
         elif choice == "Add Employee":
             return render_template("register.html")
         else:
-            return render_template("Invalid_Choice.html")
+            return render_template("invalid_choice.html")
 
 
 @app.route("/customer_info", methods=["GET", "POST"])
@@ -218,7 +218,7 @@ def Customer_Info():
         ):
             return render_template("insufficient_data.html")
         return render_template(
-            "Create_Quotation.html", products=prods, customer_info=current_client
+            "create_quotation.html", products=prods, customer_info=current_client
         )
     pass
 
@@ -233,7 +233,7 @@ def Edit_Quotation():
         )
         prods = rows.all()
         return render_template(
-            "Create_Quotation.html",
+            "create_quotation.html",
             products=prods,
             customer_info=current_client,
             entries=current_quotation,
@@ -241,8 +241,8 @@ def Edit_Quotation():
 
 
 # Create Quotation Page and handling Queries, autocomplete, and dynamic table row insertion
-@app.route("/Create_Quotation", methods=["GET", "POST"])
-def Create_Quotation():
+@app.route("/create_quotation", methods=["GET", "POST"])
+def create_quotation():
     if request.method == "POST":
         # Get the product code and quantity from the submitted form
         code = request.form.get("product_code")
@@ -279,7 +279,7 @@ def Create_Quotation():
         )
         prods = rows.all()
         return render_template(
-            "Create_Quotation.html",
+            "create_quotation.html",
             entries=current_quotation,
             products=prods,
             customer_info=current_client,
@@ -434,7 +434,7 @@ def percentage():
         percentage = request.form.get("percentage")
         Type = request.form.get("change_type")
         if not percentage:
-            return render_template("Invalid_Choice.html")
+            return render_template("invalid_choice.html")
         if Type == "Increase":
             new_percentage = 1 + (int(percentage) / 100)
         elif Type == "Decrease":
@@ -590,7 +590,7 @@ def convert_url_to_qr_code(url: str, rounded_corners=True, logo_path=None) -> PI
 @app.route("/query", methods=["GET", "POST"])
 def query():
     if request.method == "GET":
-        return render_template("Create_Quotation.html")
+        return render_template("create_quotation.html")
     elif request.method == "POST":
         code = request.form.get("product_code")
         name = request.form.get("product_name")
@@ -602,7 +602,7 @@ def query():
             return render_template("insufficient_data.html")
         product_details = get_product(code, name, quantity)
 
-        return render_template("Create_Quotation.html", product_details=product_details, quantity=quantity)
+        return render_template("create_quotation.html", product_details=product_details, quantity=quantity)
  """
 
 

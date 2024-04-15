@@ -16,6 +16,8 @@ import datetime
 import os
 import pythoncom
 import win32com.client
+from dotenv import load_dotenv
+
 
 # TODO: Learn what a logger is. (python logging module)
 
@@ -35,10 +37,13 @@ current_client = {
     "Rep_Number": "",
 }
 
-# TODO: Use python-dotenv to store sensitive information in a .env file
 
-username = "root"
-password = "13579111315szxM"
+# Load the environment variables
+load_dotenv()
+username = os.getenv("USER")
+password = os.getenv("PASSWORD")
+schema = os.getenv("SCHEMA")
+
 quotation_dir = "quotations"
 
 if not os.path.exists(quotation_dir):
@@ -46,8 +51,9 @@ if not os.path.exists(quotation_dir):
 
 
 engine = create_engine(
-    f"mysql+mysqlconnector://{username}:{password}@127.0.0.1/poof_schema"
+    f"mysql+mysqlconnector://{username}:{password}@127.0.0.1/{schema}"
 )
+
 try:
     df.to_sql(name="product_list", con=engine, if_exists="fail", index=False)
 except ValueError:
@@ -57,23 +63,6 @@ conn = engine.connect()
 # Connect Flask
 app = Flask(__name__)
 
-# Read the Quotation Template content
-
-""" 
-# Create a document instance
-quotation_doc = Document()
-
-# Set Font of the document
-style = quotation_doc.styles["Normal"]
-style.font.name = "Arial"
-
-# Add header to the document
-header_section = quotation_doc.sections[0]
-header = header_section.header
-header_text = header.paragraphs[0]
-header_text.text = "Multimedica ScO.\nAddress: 27 Al Hayah St. Tanta Qism 2, Gharbia Governorate 31511, Egypt"
-
- """
 # Configure Session to use filesystem
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
@@ -87,15 +76,14 @@ def index():
         return redirect("/login")
     name = session["name"].split(" ")[0]
     # Clear the current quotation and client info
-    current_quotation.clear()  # TODO: IDK man.. do somthing
-    current_client.clear()
+    
 
     return render_template("index.html", name=name)
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    # TODO session tracking
+
     # If the user is not logged in, redirect to login page
     if request.method == "GET":
         if session.get("name") and session.get("access_level"):
@@ -120,19 +108,19 @@ def login():
         # Ensure username and password were submitted
         if not name or not Pass:
             print("Name or Pass is empty")
-            return render_template("Invalid_Credentials.html", name=name, Pass=Pass)
+            return render_template("invalid_credentials.html", name=name, Pass=Pass)
 
         # Ensure username exists and password is correct
         if len(authority) != 1 or not check_password_hash(authority[0][2], Pass):
             print("Wrong name or wrong Password")
-            return render_template("Invalid_Credentials.html", authority=authorityres)
+            return render_template("invalid_credentials.html", authority=authorityres)
 
         session["user_id"] = authority[0][0]
         session["access_level"] = authority[0][3]
         # Redirect user to appropriate page depending on the authority level
         if session["access_level"]:
             return redirect("/")
-        return render_template("Invalid_Credentials.html")
+        return render_template("invalid_credentials.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -143,16 +131,16 @@ def register():
 
         name = request.form.get("username")
         password = request.form.get("up")
-        Cpassword = request.form.get("up2")
+        cpassword = request.form.get("up2")
         authority = request.form.get("authority")
         hash = generate_password_hash(password, method="pbkdf2", salt_length=16)
         # print(hash)
         if not name:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
         # Ensure password was submitted
         elif not password:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
         # Query database for username
         # TODO Protect against SQL injection
@@ -163,10 +151,10 @@ def register():
 
         # Ensure username exists and password is correct
         if len(rows) != 0:
-            return render_template("Invalid_Credentials.html")
+            return render_template("invalid_credentials.html")
 
-        if password != Cpassword:
-            return render_template("Invalid_Credentials.html")
+        if password != cpassword:
+            return render_template("invalid_credentials.html")
 
         # TODO Protect against SQL injection
         conn.execute(
@@ -205,13 +193,13 @@ def task():
             case "Data_Entry":
                 return render_template("customer_info.html")
             case _:
-                return render_template("Invalid_Credentials.html")
+                return render_template("invalid_credentials.html")
 
     elif request.method == "POST":
         choice = request.form.get("task")
         # print(choice)
         match choice:
-            case "Create_quotation":
+            case "create_quotation":
                 return render_template("customer_info.html")
             case "Edit product prices":
                 return render_template("edit_prices.html")
@@ -220,7 +208,7 @@ def task():
             case "Add Employee":
                 return render_template("register.html")
             case _:
-                return render_template("Invalid_Choice.html")
+                return render_template("invalid_choice.html")
 
 
 @app.route("/customer_info", methods=["GET", "POST"])
@@ -246,7 +234,7 @@ def Customer_Info():
         ):
             return render_template("insufficient_data.html")
         return render_template(
-            "Create_Quotation.html", products=prods, customer_info=current_client
+            "create_quotation.html", products=prods, customer_info=current_client
         )
     pass
 
@@ -261,7 +249,7 @@ def edit_quotation():
         )
         prods = rows.all()
         return render_template(
-            "Create_Quotation.html",
+            "create_quotation.html",
             products=prods,
             customer_info=current_client,
             entries=current_quotation,
@@ -272,13 +260,15 @@ def edit_quotation():
 
 
 # Create Quotation Page and handling Queries, autocomplete, and dynamic table row insertion
-@app.route("/Create_Quotation", methods=["GET", "POST"])
-def Create_Quotation():
+@app.route("/create_quotation", methods=["GET", "POST"])
+def create_quotation():
     if request.method == "POST":
         # Get the product code and quantity from the submitted form
         code = request.form.get("product_code")
         quantity = request.form.get("quantity")
-        quantity = float(quantity)  # TODO: validate that quantity is not None
+        if quantity is None:
+            return render_template("insufficient_data.html")
+        quantity = float(quantity)
         rows = conn.execute(
             text(f"SELECT * FROM product_list WHERE product_code = '{code}'")
         )
@@ -288,16 +278,16 @@ def Create_Quotation():
         if len(prod) == 0 or prod is None:
             return render_template("insufficient_data.html")
 
-        ## TODO: Addd comments on wtf this does
+        # Add the product to the current quotation
         current_quotation.append(
             [
-                prod[0][4],
-                prod[0][0],
-                prod[0][1],
-                prod[0][3],
-                quantity,
-                prod[0][2],
-                prod[0][2] * quantity,
+                prod[0][4], # Image
+                prod[0][0], # Product Code
+                prod[0][1], # Product Name
+                prod[0][3], # Description
+                quantity,   # Quantity    
+                prod[0][2], # Price
+                prod[0][2] * quantity, # Total
             ]
         )
 
@@ -308,7 +298,7 @@ def Create_Quotation():
         )
         prods = rows.all()
         return render_template(
-            "Create_Quotation.html",
+            "create_quotation.html",
             entries=current_quotation,
             products=prods,
             customer_info=current_client,
@@ -320,7 +310,7 @@ def Create_Quotation():
 
 @app.route("/preview", methods=["GET", "POST"])
 def preview():
-    # TODO Add a preview page that shows the current quotation, an option to go back and edit, and an option to submit
+    # Render a preview page that shows the current quotation, an option to go back and edit, and an option to submit
     return render_template(
         "preview_quotation.html",
         customer_info=current_client,
@@ -367,9 +357,6 @@ def submit():
     # Export the dataframes to an Excel file, then save the file as a pdf
     # and save the pdf to the database alongside the name of the user and the date of submission
     # Add serializtion to the quotation files
-    """ with pd.ExcelWriter("D:/Work/POOF/Quotation.xlsx") as writer:
-        client_data.to_excel(writer, sheet_name = "Client_Info", index = True)
-        product_data.to_excel(writer, sheet_name = "Product_Info", index = True) """
     # Clear the current quotation and client info
     current_quotation.clear()
     current_client.clear()
@@ -411,50 +398,6 @@ def submit():
 
     submit_quotation_to_db(session["user_id"], quotation, sheet)
 
-    # quotation.save(filename=f"Quotation_{Number}.xlsx")
-
-    """ 
-    #Add Title
-    quotation_doc.add_heading(f"Quotation No. {Number}", 0)
-    # Add Paragraphs
-    p = quotation_doc.add_paragraph("Date: ")
-    p.add_run(client_data["Date"][0])
-    p = quotation_doc.add_paragraph("Customer Name: ")
-    p.add_run(client_data["Customer_Name"][0])
-    p = quotation_doc.add_paragraph("Customer Number: ")
-    p.add_run(client_data["Customer_Number"][0])
-    p = quotation_doc.add_paragraph("Rep Name: ")
-    p.add_run(client_data["Rep_Name"][0])
-    p = quotation_doc.add_paragraph("Rep Number: ")
-    p.add_run(client_data["Rep_Number"][0])
-    
-    # Add QR Code of Quotation
-    quotation_doc.add_picture("D:/Work/POOF/qr_code.png", width=Cm(3.0), height=Cm(3.0))
-
-    # Add Table
-    table = quotation_doc.add_table(rows=1, cols=7)
-    hdr_cells = table.rows[0].cells
-    hdr_cells[0].text = "Image"
-    hdr_cells[1].text = "Product Code"
-    hdr_cells[2].text = "Product Name"
-    hdr_cells[3].text = "Description"
-    hdr_cells[4].text = "Quantity"
-    hdr_cells[5].text = "Price"
-    hdr_cells[6].text = "Total"
-    for i in range(len(product_data)):
-        row_cells = table.add_row().cells
-        print(f"Product Code is: {product_data["Product_Code"][i]}")
-        print(i)
-        row_cells[0].text = str(product_data["Image"][i])
-        row_cells[1].text = str(product_data["Product_Code"][i])
-        row_cells[2].text = str(product_data["Product_Name"][i])
-        row_cells[3].text = str(product_data["Description"][i])
-        row_cells[4].text = str(product_data["Quantity"][i])
-        row_cells[5].text = str(product_data["Price"][i])
-        row_cells[6].text = str(product_data["Total"][i])
-    quotation_doc.add_page_break()
-    quotation_doc.save(f'Quotation_{Number}.docx')
-    """
     # Clear Dataframes
     client_data = pd.DataFrame()
     product_data = pd.DataFrame()
@@ -509,7 +452,7 @@ def percentage():
         percentage = request.form.get("percentage")
         Type = request.form.get("change_type")
         if not percentage:
-            return render_template("Invalid_Choice.html")
+            return render_template("invalid_choice.html")
         if Type == "Increase":
             new_percentage = 1 + (float(percentage) / 100.0)
         elif Type == "Decrease":
@@ -528,7 +471,7 @@ def add_product():
         name = request.form.get("name")
         price = request.form.get("price")
         description = request.form.get("description")
-        image = request.form.get("image")  # TODO Convert image file to directory
+        image = request.form.get("image")
         conn.execute(
             text(
                 f'INSERT INTO product_list(Product_Code, Product_Name, Price, Description, Image_Directory) VALUES ("{code}", "{name}", "{price}", "{description}", "{image}")'
@@ -538,23 +481,19 @@ def add_product():
         return render_template("admin_options.html")
     return render_template("add_product.html")
 
-
-################################################################################################
-########################################### LUK LUK ############################################
-################################################################################################
-
-
 # View the Quotation
 @app.route("/view", methods=["GET"])  # expection a url/view?quotation_id=1
 def view_quotation():
     quotation_id = request.args.get("quotation_id")
 
-    ## TODO: Read the excel and put the values into the entries variable
+    # Read the excel and put the values into the entries variable
+    # Get the path of the quotation file
     path = os.path.join(quotation_dir, f"{quotation_id}.xlsx")
     path = os.path.abspath(path)
-
+    # Open the quotation file
     requested_quotation = openpyxl.load_workbook(path)
     sheet = requested_quotation.active
+    # Assign the values of the cells to the client_data dictionary
     Date_Cell = sheet["I5"]
     Customer_Name_Cell = sheet["A9"]
     Customer_Number_Cell = sheet["C9"]
@@ -562,6 +501,7 @@ def view_quotation():
     Rep_Number_Cell = sheet["C12"]
     Quotation_Number_Cell = sheet["G5"]
 
+    # Create a dictionary to store the client data
     client_data = {
         "Date": None,
         "Customer_Name": None,
@@ -570,6 +510,7 @@ def view_quotation():
         "Rep_Number": None,
     }
 
+    # Assign the values of the cells to the client_data dictionary
     client_data["Date"] = Date_Cell.value
     client_data["Customer_Name"] = Customer_Name_Cell.value
     client_data["Customer_Number"] = Customer_Number_Cell.value
@@ -577,6 +518,7 @@ def view_quotation():
     client_data["Rep_Number"] = Rep_Number_Cell.value
 
     entries = []
+    # Get the values of the cells and put them into the entries list
     rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=9)
     print("Rows: ", rows)
     for i, row in enumerate(rows):
@@ -593,7 +535,6 @@ def view_quotation():
 
     total = 0
     vat = 0
-    print(f"Entries are {entries}")
     for entry in entries:
         total += entry[5]
     vat = total * 0.14
@@ -659,7 +600,6 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     # Save the quotation to the file system
     quotation.save(filename=quotation_file_path)
 
-    # TODO: Convert the excel to pdf and save as quotation_dir/quotation_id.pdf
     # Open Microsoft Excel
 
     quotation_file_path = os.path.abspath(quotation_file_path)
@@ -674,20 +614,12 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
 
     # Convert into PDF File
     work_sheets.ExportAsFixedFormat(0, pdf_file_path)
-
-    """ excel = client.Dispatch("Excel.Application")    
-    # Read Excel File
-    sheets = excel.Workbooks.Open(quotation_file_path)
-    work_sheets = sheets.Worksheets[0]
-
-    # Convert into PDF file
-    work_sheets.ExportAsFixedFormat(0, pdf_file_path) """
+    
     return True
 
 
 def update_password(user_name: str, new_password) -> bool:
     # Make a SQL request to the DB to update the password hash for the user
-
     new_hash = generate_password_hash(new_password, method="pbkdf2", salt_length=16)
 
     query = f"UPDATE authorized_personnel SET Password = '{new_hash}' WHERE Employee_Name = '{user_name}'"
