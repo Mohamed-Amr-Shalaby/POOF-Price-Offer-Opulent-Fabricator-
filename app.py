@@ -27,7 +27,7 @@ def initialize_com():
 
 
 #  Create engine
-df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet.xlsx")
+df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet_updated.xlsx")
 current_quotation = []
 current_client = {
     "Date": "",
@@ -44,7 +44,7 @@ username = os.getenv("USER")
 password = os.getenv("PASSWORD")
 schema = os.getenv("SCHEMA")
 
-quotation_dir = "quotations"
+quotation_dir = "static/quotations"
 
 if not os.path.exists(quotation_dir):
     os.mkdir(quotation_dir)
@@ -53,11 +53,15 @@ if not os.path.exists(quotation_dir):
 engine = create_engine(
     f"mysql+mysqlconnector://{username}:{password}@127.0.0.1/{schema}"
 )
+#df.to_sql(name="product_list", con=engine, index=False)
+
 
 try:
     df.to_sql(name="product_list", con=engine, if_exists="fail", index=False)
 except ValueError:
     pass
+
+
 conn = engine.connect()
 
 # Connect Flask
@@ -384,17 +388,20 @@ def submit():
     Quotation_Number_Cell.value = quotation_id
     # Add the product data to the quotation template
     rows = sheet.iter_rows(
-        min_row=14, max_row=14 + len(product_data), min_col=1, max_col=9
+        min_row=14, max_row=14 + len(product_data), min_col=1, max_col=10
     )
     print("Rows: ", rows)
     for i, row in enumerate(rows):
         if i == len(product_data):
             break
         row[6].value = product_data["Quantity"][i]
-        row[0].value = product_data["Product_Name"][i]
-        row[2].value = product_data["Description"][i]
+        if product_data["Description"][i] == None:
+            row[0].value = product_data["Product_Name"][i]
+        else:
+            row[0].value = product_data["Description"][i]
         row[7].value = product_data["Price"][i]
         row[8].value = product_data["Total"][i]
+        row[9].value = product_data["Product_Name"][i]
 
     submit_quotation_to_db(session["user_id"], quotation, sheet)
 
@@ -519,28 +526,36 @@ def view_quotation():
 
     entries = []
     # Get the values of the cells and put them into the entries list
-    rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=9)
+    rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10)
     print("Rows: ", rows)
     for i, row in enumerate(rows):
-        if not row[0].value:
+        if not row[0].value and not row[9].value:
             break
         quantity = row[6].value
-        product_name = row[0].value
-        description = row[2].value
+        # Get the Image_Directory from database
+        
+
+        description = row[0].value 
+        if row[0].value == None:
+            description = row[9].value
+        dir = conn.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_name = '{description}' OR Description = '{description}'"))
+        directories = dir.all()
+        conn.commit()
+        print(f"Description: {description}")
         price = row[7].value
         total = row[8].value
         entries.append(
-            [f"{product_name}.png", product_name, description, price, quantity, total]
+            [f"{directories[0][0]}", description, price, quantity, total]
         )
 
     total = 0
     vat = 0
     for entry in entries:
-        total += entry[5]
+        total += entry[4]
     vat = total * 0.14
     total += vat
-
-    return render_template("view_quotation.html", entries=entries, total=total, vat=vat)
+    quotation_pdf = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+    return render_template("view_quotation.html", entries=entries, total=total, vat=vat, quotation_pdf=quotation_pdf)
 
 
 @app.route("/price_list", methods=["GET", "POST"])
