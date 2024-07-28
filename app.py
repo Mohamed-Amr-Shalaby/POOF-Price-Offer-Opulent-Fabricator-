@@ -45,7 +45,7 @@ password = os.getenv("PASSWORD")
 schema = os.getenv("SCHEMA")
 
 quotation_dir = "static/quotations"
-
+excel_quotation_dir = "static/editable_quotations"
 if not os.path.exists(quotation_dir):
     os.mkdir(quotation_dir)
 
@@ -329,7 +329,7 @@ def submit():
 
     if request.method == "GET":
         pass
-
+    
     client_columns = [
         "Date",
         "Customer_Name",
@@ -403,13 +403,28 @@ def submit():
         row[8].value = product_data["Total"][i]
         row[9].value = product_data["Product_Name"][i]
 
-    submit_quotation_to_db(session["user_id"], quotation, sheet)
-
+    pdf_path = submit_quotation_to_db(session["user_id"], quotation, sheet)
+    print(f"PDF Path: {pdf_path}")
+    #TODO After submitting quotation, download the PDF file by passing its path to the successful submission page
     # Clear Dataframes
     client_data = pd.DataFrame()
     product_data = pd.DataFrame()
-    return render_template("successful_submission.html"), {"Refresh": "5; url=/"}
+    # Redirect the user to a page that allows them to download the quotation
+    return redirect("/download")
+    
 
+#Create a page that the user is redirected to after submitting a quotation that allows them to download the PDF file
+@app.route("/download", methods=["GET"])
+def download():
+    no_of_quotations = conn.execute(
+        text("SELECT MAX(quotation_id) FROM exported_quotations")
+    ).all()[0][0]
+    if not no_of_quotations:
+        no_of_quotations = 0
+    quotation_id = no_of_quotations
+    pdf_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+    print(f"PDF Path: {pdf_path}")
+    return render_template("successful_submission.html", pdf_path=pdf_path)
 
 # Create Page that allows admins to change the price of products
 @app.route("/price", methods=["GET", "POST"])
@@ -495,7 +510,7 @@ def view_quotation():
 
     # Read the excel and put the values into the entries variable
     # Get the path of the quotation file
-    path = os.path.join(quotation_dir, f"{quotation_id}.xlsx")
+    path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
     path = os.path.abspath(path)
     # Open the quotation file
     requested_quotation = openpyxl.load_workbook(path)
@@ -532,9 +547,8 @@ def view_quotation():
         if not row[0].value and not row[9].value:
             break
         quantity = row[6].value
-        # Get the Image_Directory from database
-        
 
+        # Get the Image_Directory from database
         description = row[0].value 
         if row[0].value == None:
             description = row[9].value
@@ -590,7 +604,7 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     quotation_id = no_of_quotations + 1
     submission_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
-    quotation_file_path = os.path.join(quotation_dir, f"{quotation_id}.xlsx")
+    quotation_file_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
     pdf_file_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
     conn.execute(
         text(
@@ -598,7 +612,7 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
         )
     )
     conn.commit()
-
+    
     qr_code = convert_url_to_qr_code(quotation_url)
     path = f"{quotation_dir}/{quotation_id}.png"
     qr_code = qr_code.save(path, "PNG")
@@ -630,7 +644,7 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     # Convert into PDF File
     work_sheets.ExportAsFixedFormat(0, pdf_file_path)
     
-    return True
+    return pdf_file_path
 
 
 def update_password(user_name: str, new_password) -> bool:
