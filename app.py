@@ -16,6 +16,7 @@ import datetime
 import os
 import pythoncom
 import win32com.client
+import math
 from dotenv import load_dotenv
 
 
@@ -285,13 +286,14 @@ def create_quotation():
         # Add the product to the current quotation
         current_quotation.append(
             [
-                prod[0][4], # Image
                 prod[0][0], # Product Code
                 prod[0][1], # Product Name
+                prod[0][5], # Image
                 prod[0][3], # Description
+                prod[0][4], # Specs
                 quantity,   # Quantity    
                 prod[0][2], # Price
-                prod[0][2] * quantity, # Total
+                prod[0][2] * quantity # Total
             ]
         )
 
@@ -322,6 +324,124 @@ def preview():
     )
 
 
+def vacant_spots(sheet):
+    vacants = 0
+    num_rows_per_sheet = 8
+    min_row = 14
+    max_row = min_row + num_rows_per_sheet - 1
+    min_col = 1
+    max_col = 10
+    rows = sheet.iter_rows(
+        min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col
+    )
+    for row in rows:
+        if row[0].value is None:
+            vacants += 1
+    return vacants
+
+
+def add_small_product_to_page(product_specs, biggest_product, ws, vacancy, product_data):
+
+    # The product has 8 or less lines
+    # Check if the product can fit in the current page
+    size = product_specs[biggest_product][1] + 1
+    if size > vacancy:
+        raise Exception("Not enough vacancy for product sent to add_small_product_to_page")
+    for product in product_specs:
+        if product == biggest_product:
+            # Add the product name to the first cell of the page
+            description = list(product_data.loc[product_data["Description"] == product]["Description"])[0]
+            quantity = list(product_data.loc[product_data["Description"] == product]["Quantity"])[0]
+            price = list(product_data.loc[product_data["Description"] == product]["Price"])[0]
+            total = list(product_data.loc[product_data["Description"] == product]["Total"])[0]
+            product_name = list(product_data.loc[product_data["Description"] == product]["Product_Name"])[0]
+            if description == None:
+                ws.cell(row=14, column=1).value = product_name
+            else:
+                ws.cell(row=14, column=1).value = product
+            ws.cell(row=14, column=7).value = quantity
+            ws.cell(row=14, column=8).value = price
+            ws.cell(row=14, column=9).value = total
+            ws.cell(row=14, column=10).value = product_name
+            for i, spec in enumerate(product_specs[product][0]):
+                ws.cell(row=15 + i + 8 - vacancy, column=1).value = spec
+            break
+    return True
+
+
+def empty_page(ws):
+    # Empty the page
+    for row in ws.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10):
+        row[0].value = None
+        row[6].value = None
+        row[7].value = None
+        row[8].value = None
+        row[9].value = None
+    return ws
+
+
+def add_large_product_to_page(product_specs, biggest_product, ws, num_sheets, sheets, quotation_temp, product_data):
+    # If the product has more than 8 lines, split it into multiple page
+    # Add the first 8 lines of the product to the first page and remove them from the dictionary
+    # Repeat the process for the rest of the pages
+    current_page_number = len(sheets)  # The current page number
+    # Add number of sheets needed to the sheets list
+    for _ in range(num_sheets):
+            ws = quotation_temp.copy_worksheet(ws)
+            # Empty the page
+            empty_page(ws)
+            # Add the new page to the sheets list
+            sheets.append(ws)
+
+    for i in range(current_page_number, current_page_number + num_sheets, 1):
+        ws = sheets[i]
+        for product in product_specs:
+            if product == biggest_product:
+                # Add the product name to the first cell of the page
+                # Only add the product name to the first page
+                if i == current_page_number:
+                    print(f"Product Data:\n {product_data.to_string()}")
+                    description = list(product_data.loc[product_data["Description"] == product]["Description"])[0]
+                    quantity = list(product_data.loc[product_data["Description"] == product]["Quantity"])[0]
+                    price = list(product_data.loc[product_data["Description"] == product]["Price"])[0]
+                    total = list(product_data.loc[product_data["Description"] == product]["Total"])[0]
+                    product_name = list(product_data.loc[product_data["Description"] == product]["Product_Name"])[0]
+                    if description == None:
+                        ws.cell(row=14, column=1).value = product_data["Product_Name"][0]
+                    else:
+                        ws.cell(row=14, column=1).value = product
+                    # Get Quantity, Price, Total, and Product Name from the product_data dictionary where product name is equal to product
+                    
+                    
+                    ws.cell(row=14, column=7).value = quantity
+                    ws.cell(row=14, column=8).value = price
+                    ws.cell(row=14, column=9).value = total
+                    ws.cell(row=14, column=10).value = product_name
+                    # Add the first 7 lines of the specs to the page
+                    for j in range(7):
+                        ws.cell(row=15 + j, column=1).value = product_specs[product][0][j]
+                    # Remove the first 7 lines from the product
+                    product_specs[product][0] = product_specs[product][0][7:]
+                    product_specs[product][1] -= 7
+                # if it's not the first page, keep adding the specs to the page until the page is full or the product is finished
+                else:
+                    # If the product has less than 8 lines left, add them to the page
+                    if product_specs[product][1] <= 8:
+                        for j, spec in enumerate(product_specs[product][0]):
+                            ws.cell(row=14 + j, column=1).value = spec
+                        # Remove the specs from the product
+                        product_specs[product][0] = []
+                        product_specs[product][1] = 0
+                        break
+                    # If the product has more than 8 lines left, add the first 8 lines to the page
+                    else:
+                        for j in range(8):
+                            ws.cell(row=14 + j, column=1).value = product_specs[product][0][j]
+                        # Remove the first 8 lines from the product
+                        product_specs[product][0] = product_specs[product][0][8:]
+                        product_specs[product][1] -= 8
+                        break
+
 # Convert the current quotation to a dataframe, submit it to the database, and export it as an excel file
 @app.route("/export", methods=["GET", "POST"])
 def submit():
@@ -338,10 +458,12 @@ def submit():
         "Rep_Number",
     ]
     product_columns = [
-        "Image",
+
         "Product_Code",
         "Product_Name",
+        "Image",
         "Description",
+        "Specs",
         "Quantity",
         "Price",
         "Total",
@@ -370,15 +492,18 @@ def submit():
     if not no_of_quotations:
         no_of_quotations = 0
     quotation_id = no_of_quotations + 1
+    
     # Open Template file
-    quotation = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
-    sheet = quotation.active
-    Date_Cell = sheet["I5"]
-    Customer_Name_Cell = sheet["A9"]
-    Customer_Number_Cell = sheet["C9"]
-    Rep_Name_Cell = sheet["A12"]
-    Rep_Number_Cell = sheet["C12"]
-    Quotation_Number_Cell = sheet["G5"]
+    quotation_temp = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
+    ws = quotation_temp.active
+    sheets = [ws]
+    Date_Cell = ws["I5"]
+    Customer_Name_Cell = ws["A9"]
+    Customer_Number_Cell = ws["C9"]
+    Rep_Name_Cell = ws["A12"]
+    Rep_Number_Cell = ws["C12"]
+    Quotation_Number_Cell = ws["G5"]
+    
     # Add the client data to the quotation template
     Date_Cell.value = client_data["Date"][0]
     Customer_Name_Cell.value = client_data["Customer_Name"][0]
@@ -386,29 +511,86 @@ def submit():
     Rep_Name_Cell.value = client_data["Rep_Name"][0]
     Rep_Number_Cell.value = client_data["Rep_Number"][0]
     Quotation_Number_Cell.value = quotation_id
-    # Add the product data to the quotation template
-    rows = sheet.iter_rows(
-        min_row=14, max_row=14 + len(product_data), min_col=1, max_col=10
-    )
-    print("Rows: ", rows)
-    for i, row in enumerate(rows):
-        if i == len(product_data):
-            break
-        row[6].value = product_data["Quantity"][i]
-        if product_data["Description"][i] == None:
-            row[0].value = product_data["Product_Name"][i]
+    
+    
+    # Get the true number of rows by unpacking product data from the database
+    product_specs = {}
+    for code in product_data["Product_Code"]:
+        rows = conn.execute(
+            text(f"SELECT Description, Specs FROM product_list WHERE product_code = '{code}'")
+        )
+        specs = rows.all()
+        # If there's no specs, set the product specs to None
+        product_name = specs[0][0]
+        if specs[0][1] == None:
+            product_specs[product_name] = None
+        # If there are specs, split them and store them in the product_specs dictionary, along with the number of specs as a list
         else:
-            row[0].value = product_data["Description"][i]
-        row[7].value = product_data["Price"][i]
-        row[8].value = product_data["Total"][i]
-        row[9].value = product_data["Product_Name"][i]
+            # product_specs["Product_Name"][0] is the product name, product_specs["Product_Name"][1] is the number of specs
+            product_specs[product_name] = [specs[0][1].split("@"), len(specs[0][1].split("@"))]
+    # Sort the product specs by the number of specs in descending order
+    product_specs = dict(sorted(product_specs.items(), key=lambda item: item[1][1], reverse=True))
+    
+    while len(product_specs) > 0:
 
-    pdf_path = submit_quotation_to_db(session["user_id"], quotation, sheet)
+        # Check current page vacancy and save the number of vacant spots in a variable vacancy
+        vacancy = vacant_spots(ws)
+        # Check the biggest product in the dictionary and save its size in variable size and its name in variable largest_product
+        biggest_product = list(product_specs.keys())[0]
+        size = product_specs[biggest_product][1] + 1
+        # If size is less than 8:
+
+        if size <= 8:
+            # If vacancy is greater than or equal to size, add the product to the current page and remove it from the dictionary
+            if vacancy >= size:
+                add_small_product_to_page(product_specs, biggest_product, ws, vacancy, product_data)
+                del product_specs[biggest_product]
+            # Elif vacancy is less than size:
+            elif vacancy < size:
+                found = False
+                # Go through the rest of the products in the dictionary and check if any of them can fit in the current page
+                for product in product_specs:
+                    temp_size = product_specs[product][1] + 1
+                    if temp_size <= vacancy:
+                        # If a product is found, add it to the current page and remove it from the dictionary
+                        add_small_product_to_page(product_specs, product, ws, vacancy, sheets, quotation_temp, product_data)
+                        del product_specs[product]
+                        found = True
+                        break
+                # If no product is found, move to the next page and add the product to the new page
+                if not found:
+                    ws = quotation_temp.copy_worksheet(ws)
+                    sheets.append(ws)
+                    # Empty the page
+                    empty_page(ws)
+        # Elif size is greater than 8:
+        elif size > 8:
+            # Create as many pages as needed to fit the product
+            num_sheets = math.ceil(product_specs[biggest_product][1] / 8)
+            # product_specs, biggest_product, ws, num_sheets, sheets, quotation_temp, product_data
+            add_large_product_to_page(product_specs, biggest_product, ws, num_sheets, sheets, quotation_temp, product_data)
+            del product_specs[biggest_product]
+    # Go over the total column in each page and calculate the total for all pages
+    total = 0
+    for sheet in sheets:
+        for row in sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10):
+            if row[8].value is None:
+                break
+            print(f"Row: {row[8].value}")
+            total += row[8].value
+    # Add total to the last page only at cell I23
+    ws["I23"].value = total
+    
+
+    
+
+    pdf_path = submit_quotation_to_db(session["user_id"], quotation_temp, ws)
     print(f"PDF Path: {pdf_path}")
-    #TODO After submitting quotation, download the PDF file by passing its path to the successful submission page
+
     # Clear Dataframes
     client_data = pd.DataFrame()
     product_data = pd.DataFrame()
+    
     # Redirect the user to a page that allows them to download the quotation
     return redirect("/download")
     
@@ -594,7 +776,7 @@ def price_list():
     return render_template("price_list.html", products=products)
 
 
-def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
+def submit_quotation_to_db(employee_id: int, quotations, sheet) -> bool:
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
     ).all()[0][0]
@@ -627,7 +809,7 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     sheet.add_image(img)
 
     # Save the quotation to the file system
-    quotation.save(filename=quotation_file_path)
+    quotations.save(filename=quotation_file_path)
 
     # Open Microsoft Excel
 
@@ -639,10 +821,12 @@ def submit_quotation_to_db(employee_id: int, quotation, sheet) -> bool:
     excel.Visible = False
 
     sheets = excel.Workbooks.Open(quotation_file_path)
-    work_sheets = sheets.Worksheets[0]
+    # Get all worksheets
+    work_sheets = sheets.Worksheets
 
     # Convert into PDF File
-    work_sheets.ExportAsFixedFormat(0, pdf_file_path)
+    # Merge all the worksheets into one PDF
+    sheets.ExportAsFixedFormat(0, pdf_file_path)
     
     return pdf_file_path
 
