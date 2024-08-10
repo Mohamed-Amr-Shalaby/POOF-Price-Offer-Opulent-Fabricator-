@@ -723,6 +723,38 @@ def view_quotation():
 
     entries = []
     # Get the values of the cells and put them into the entries list
+    # Repeat this for all sheets in the quotation and skip empty lines. Don't look for an image directory if there's no price (aka it's a spec)
+    # Get number of sheets in the quotation and iterate over them
+    num_sheets = len(requested_quotation.sheetnames)
+    for i in range(num_sheets):
+        sheet = requested_quotation.worksheets[i]
+        rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10)
+        for i, row in enumerate(rows):
+            if not row[0].value and not row[9].value:
+                break
+            quantity = row[6].value
+            description = row[0].value
+            if row[0].value == None:
+                description = row[9].value
+            
+            price = row[7].value
+            total = row[8].value
+            if description is None:
+                continue    
+            elif price is None:
+                entries.append(
+                    ["bullet.png", description, 0, 0, 0]
+                )
+            else:
+                dir = conn.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_name = '{description}' OR Description = '{description}'"))
+                directories = dir.all()
+                conn.commit()
+                entries.append(
+                    [f"{directories[0][0]}", description, price, quantity, total]
+                )
+
+    """ 
+    # Get the values of the cells and put them into the entries list
     rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10)
     print("Rows: ", rows)
     for i, row in enumerate(rows):
@@ -742,11 +774,13 @@ def view_quotation():
         total = row[8].value
         entries.append(
             [f"{directories[0][0]}", description, price, quantity, total]
-        )
+        ) """
 
     total = 0
     vat = 0
     for entry in entries:
+        if entry[2] is None:
+            continue
         total += entry[4]
     vat = total * 0.14
     total += vat

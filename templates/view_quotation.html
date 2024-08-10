@@ -20,11 +20,11 @@
                 <tbody>
                         {% for entry in entries %}
                         <tr>
-                            <td style="width: 10%;"><img src="{{url_for('static', filename = entry[0])}}" style="max-width: 100%; height: auto;" onclick="this.requestFullscreen()"></td>
-                            <td >{{entry[1]}}</td>
-                            <td style="width: 10%;">{{entry[2]}}</td>
-                            <td style="width: 10%;">{{entry[3]}}</td>
-                            <td style="width: 10%;">{{entry[4]}}</td>
+                            <td style="height: 3%; width: 10%;"><img src="{{url_for('static', filename = entry[0])}}" style="max-width: 100%; height: auto;" onclick="this.requestFullscreen()"></td>
+                            <td style="height: 3%; width: 60%; vertical-align: middle;">{{entry[1]}}</td>
+                            <td style="height: 3%; width: 10%; vertical-align: middle;">{{entry[2]}}</td>
+                            <td style="height: 3%; width: 10%; vertical-align: middle;">{{entry[3]}}</td>
+                            <td style="height: 3%; width: 10%; vertical-align: middle;">{{entry[4]}}</td>
                         </tr>
                         {% endfor %}
                         
