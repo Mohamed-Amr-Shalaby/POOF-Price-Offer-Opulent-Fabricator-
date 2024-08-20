@@ -73,6 +73,65 @@
             </div>
         </div>
     </div>
+    <div class="container-fluid d-flex align-items-center justify-content-center" style="background-color: white; min-height: 10rem;">
+        <div class="row text-center align-items-center flex-fill">
+            <table class = "table table-striped">
+                <thead>
+                    <tr>
+                        <th scope = "col">Quotation ID</th>
+                        <th scope = "col">Submission Date</th>
+                        <th scope = "col">Submitted By</th>
+                        <th scope = "col">Current Status</th>
+                        <th scope = "col">Approved By</th>
+                        <th scope = "col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if user == "Administrator" %}
+                    {% for quotation in quotations %}
+                        <tr>
+                            <th scope = "row">{{ quotation[0] }}</th>
+                            <td>{{ quotation[1] }}</td>
+                            <td>{{ quotation[2] }}</td>
+                            <td>{{ quotation[3] }}</td>
+                            <td>{{ quotation[6] }}</td>
+                            <td>
+                                {% if quotation[3] == "Pending" %}
+                                <form action = "/review" method = "post">
+                                    <input type = "hidden" name = "quotation_id" value = "{{ quotation[0] }}">
+                                    <button type = "submit" class = "btn btn-primary">Review Quotation</button>
+                                </form>
+                                {% elif quotation[3] == "Approved" %}
+                                <a href = "{{ quotation[5] }}" class = "btn btn-primary">Download</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor%}
+                {% else %}
+                    {% for quotation in quotations %}
+                        <tr>
+                            <th scope = "row">{{ quotation[0] }}</th>
+                            <td>{{ quotation[1] }}</td>
+                            <td>{{ quotation[2] }}</td>
+                            <td>{{ quotation[3] }}</td>
+                            <td>{{ quotation[6] }}</td>
+                            <td>
+                                {% if quotation[3] == "Pending" %}
+                                    Awaiting Approval
+                                {% elif quotation[3] == "Approved" %}
+                                    <a href = "{{ quotation[5] }}" class = "btn btn-primary">Download</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor%}
+                {% endif %}
+
+                    
+                </tbody>
+
+            </table>
+        </div>
+    </div>
 </body>
 
 </html>

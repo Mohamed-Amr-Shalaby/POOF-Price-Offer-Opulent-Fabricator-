@@ -17,6 +17,7 @@ import os
 import pythoncom
 import win32com.client
 import math
+import json
 from dotenv import load_dotenv
 
 
@@ -73,18 +74,210 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
+# TODO: Add a function that allows user to display the status of the 10 most recent quotations and allow them to download the PDF file
+# This function should only allow the user to download the PDF file if the status is approved
+def view_quotations():
+    ... 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    # If the user is not logged in, redirect to login page
-    if not session.get("name"):
-        return redirect("/login")
-    name = session["name"].split(" ")[0]
-    # Clear the current quotation and client info
-    
+    if request.method == "GET":
+        # If the user is not logged in, redirect to login page
+        if not session.get("name"):
+            return redirect("/login")
+        name = session["name"].split(" ")[0]
+        # Clear the current quotation and client info
+        # Get the 10 most recent quotations
+        # Schema: quotation_id, submission_date, employee_id, quotation_url, quotation_file_path, status
+        """
+            <th scope = "col">Quotation ID</th>
+            <th scope = "col">Submission Date</th>
+            <th scope = "col">Submitted By</th>
+            <th scope = "col">Current Status</th>
+            <th scope = "col">Action</th>
+        """
+        quotations = conn.execute(
+            text("SELECT * FROM exported_quotations ORDER BY submission_date DESC LIMIT 10")
+        ).all()
+        conn.commit()
+        new_quotations = []
+        # Create a new list that fits the schema of the frontend for ease of use
+        for quotation in quotations:
+            # Get the employee name
+            employee = conn.execute(text(f"SELECT Employee_Name FROM authorized_personnel WHERE employee_id = {quotation[2]}")).all()
+            conn.commit()
+            employee = employee[0]
+            # Add quotation to list of quotations (list of lists)
+            pdf_path = os.path.join(quotation_dir, f"{quotation[0]}.pdf")
+            # If the status is approved, add who it's approved by
+            approved_by = None
+            if quotation[5] == "Approved":
+                approved_by = conn.execute(text(f"SELECT approved_by FROM exported_quotations WHERE quotation_id = {quotation[0]}")).all()
+                conn.commit()
+                approved_by = approved_by[0][0]
+            # If the status is approved, add the quotation to the list of new quotations
+            new_quotations.append([quotation[0], quotation[1], employee[0], quotation[5], quotation[3], pdf_path, approved_by])
+        print(f"New Quotations: {new_quotations}")
+        user = session["access_level"]
+        if user == "Developer" or user == "Administrator":
+            user = "Administrator"
+        print(f"User: {user}")
+        return render_template("index.html", quotations=new_quotations, user=user, name=name)
+    elif request.method == "POST":
+        return redirect("/review")
+    # Create a page that displays the status of the 10 most recent quotations and allows the user to download the PDF file if the status is approved
 
-    return render_template("index.html", name=name)
+@app.route("/review", methods=["GET", "POST"])
+def review_quotation():
+    if request.method == "POST":
+        quotation_id = request.form.get("quotation_id")
+        # Read the excel and put the values into the entries variable
+        # Get the path of the quotation file
+        path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
+        path = os.path.abspath(path)
+        # Open the quotation file
+        requested_quotation = openpyxl.load_workbook(path)
+        sheet = requested_quotation.active
+        # Assign the values of the cells to the client_data dictionary
+        Date_Cell = sheet["I5"]
+        Customer_Name_Cell = sheet["A9"]
+        Customer_Number_Cell = sheet["C9"]
+        Rep_Name_Cell = sheet["A12"]
+        Rep_Number_Cell = sheet["C12"]
+        Quotation_Number_Cell = sheet["G5"]
 
+        # Create a dictionary to store the client data
+        client_data = {
+            "Date": None,
+            "Customer_Name": None,
+            "Customer_Number": None,
+            "Rep_Name": None,
+            "Rep_Number": None,
+        }
+
+        # Assign the values of the cells to the client_data dictionary
+        client_data["Date"] = Date_Cell.value
+        client_data["Customer_Name"] = Customer_Name_Cell.value
+        client_data["Customer_Number"] = Customer_Number_Cell.value
+        client_data["Rep_Name"] = Rep_Name_Cell.value
+        client_data["Rep_Number"] = Rep_Number_Cell.value
+
+        entries = []
+        # Get the values of the cells and put them into the entries list
+        # Repeat this for all sheets in the quotation and skip empty lines. Don't look for an image directory if there's no price (aka it's a spec)
+        # Get number of sheets in the quotation and iterate over them
+        num_sheets = len(requested_quotation.sheetnames)
+        for i in range(num_sheets):
+            sheet = requested_quotation.worksheets[i]
+            rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10)
+            for i, row in enumerate(rows):
+                if not row[0].value and not row[9].value:
+                    break
+                quantity = row[6].value
+                description = row[0].value
+                if row[0].value == None:
+                    description = row[9].value
+                
+                price = row[7].value
+                total = row[8].value
+                if description is None:
+                    continue    
+                elif price is None:
+                    continue
+                else:
+                    dir = conn.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_name = '{description}' OR Description = '{description}'"))
+                    directories = dir.all()
+                    conn.commit()
+                    entries.append(
+                        [f"{directories[0][0]}", description, price, quantity, total]
+                    )
+        total = 0
+        vat = 0
+        for entry in entries:
+            if entry[2] is None:
+                continue
+            total += entry[4]
+        vat = total * 0.14
+        total += vat
+        quotation_pdf = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+        return render_template("review_quotation.html", entries=entries, total=total, vat=vat, quotation_pdf=quotation_pdf, quotation_id=quotation_id, customer_info=client_data)
+
+@app.route("/approve", methods=["GET", "POST"])
+def approve():
+    if request.method == "POST":
+        print(f"Quotation ID: {request.form.get('quotation_id')}")
+        table_data = json.loads(request.form.get("table_data"))
+        # Delete the quotation file from the editable_quotations directory and the PDF file from the quotations directory, and the QR code
+        os.remove(os.path.join(excel_quotation_dir, f"{request.form.get('quotation_id')}.xlsx"))
+        os.remove(os.path.join(quotation_dir, f"{request.form.get('quotation_id')}.pdf"))
+        os.remove(os.path.join(quotation_dir, f"{request.form.get('quotation_id')}.png"))
+        # Put the data in its proper form in product data and client data and clear the current quotation and client info then call the submit function
+        # Clear the current quotation and client info
+        current_quotation.clear()
+        print(f"Current Client: {current_client}")  
+        # Get the data from the table_data and put it in the current_quotation and current_client dictionaries
+        """
+        current_quotation.append(
+            [
+                prod[0][0], # Product Code NOT
+                prod[0][1], # Product Name NOT
+                prod[0][5], # Image DONE
+                prod[0][3], # Description DONE
+                prod[0][4], # Specs NOT
+                quantity,   # Quantity DONE
+                prod[0][2], # Price DONE
+                prod[0][2] * quantity # Total DONE
+            ]
+        )
+        """
+
+        for data in table_data:
+            image = data["image"]
+            description = data["description"]
+            price = data["price"]
+            quantity = data["quantity"]
+            sum = data["sum"]
+            remaining_data = conn.execute(text(f"SELECT product_code, product_name, Specs FROM product_list WHERE Description = '{description}'")).all()
+            conn.commit()
+            product_code, product_name, specs = remaining_data[0][0], remaining_data[0][1], remaining_data[0][2]
+            current_quotation.append(
+                [
+                    product_code, # Product Code
+                    product_name, # Product Name
+                    image, # Image
+                    description, # Description
+                    specs, # Specs
+                    quantity, # Quantity
+                    price, # Price
+                    sum # Total
+                ]
+            )
+        current_client["Date"] = request.form.get("date")
+        current_client["Customer_Name"] = request.form.get("customer_name")
+        current_client["Customer_Number"] = request.form.get("customer_number")
+        current_client["Rep_Name"] = request.form.get("rep_name")
+        current_client["Rep_Number"] = request.form.get("rep_number")
+
+        # Update the status of the quotation to approved
+        conn.execute(text(f"UPDATE exported_quotations SET status = 'Approved' WHERE quotation_id = {request.form.get('quotation_id')}"))
+        # Update approved by to the name of the user
+        conn.execute(text(f"UPDATE exported_quotations SET approved_by = '{session['name']}' WHERE quotation_id = {request.form.get('quotation_id')}"))
+        conn.commit()
+        # Call the submit function to submit the quotation to the database and export it as a PDF but this time with the new data and the new status
+        submit(sent_to_approve=True)
+        return redirect("/")
+
+@app.route("/reject", methods=["GET", "POST"])
+def reject():
+    if request.method == "POST":
+        # Delete the quotation file from the editable_quotations directory and the PDF file from the quotations directory, and the QR code
+        os.remove(os.path.join(excel_quotation_dir, f"{request.form.get('quotation_id')}.xlsx"))
+        os.remove(os.path.join(quotation_dir, f"{request.form.get('quotation_id')}.pdf"))
+        os.remove(os.path.join(quotation_dir, f"{request.form.get('quotation_id')}.png"))
+        # Update the status of the quotation to rejected
+        conn.execute(text(f"UPDATE exported_quotations SET status = 'Rejected' WHERE quotation_id = {request.form.get('quotation_id')}"))
+        conn.commit()
+        return redirect("/")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -260,8 +453,6 @@ def edit_quotation():
             entries=current_quotation,
         )
 
-
-# TODO: FIX THE RANDOMIZED CASE IN PAGE ROUTES
 
 
 # Create Quotation Page and handling Queries, autocomplete, and dynamic table row insertion
@@ -444,7 +635,7 @@ def add_large_product_to_page(product_specs, biggest_product, ws, num_sheets, sh
 
 # Convert the current quotation to a dataframe, submit it to the database, and export it as an excel file
 @app.route("/export", methods=["GET", "POST"])
-def submit():
+def submit(sent_to_approve=False):
     # TODO: Break this down into atomic functions
 
     if request.method == "GET":
@@ -577,26 +768,25 @@ def submit():
             if row[8].value is None:
                 break
             print(f"Row: {row[8].value}")
-            total += row[8].value
+            total += int(float(row[8].value))
     # Add total to the last page only at cell I23
     ws["I23"].value = total
     
 
-    
-
-    pdf_path = submit_quotation_to_db(session["user_id"], quotation_temp, ws)
-    print(f"PDF Path: {pdf_path}")
+    # If the user is an admin, use the admin_submit function to submit the quotation
+    # If the user is not an admin, use the non_admin_submit function to submit the quotation
+    submit_quotation_to_db(session["user_id"], quotation_temp, ws, sent_to_approve)
 
     # Clear Dataframes
     client_data = pd.DataFrame()
     product_data = pd.DataFrame()
     
-    # Redirect the user to a page that allows them to download the quotation
-    return redirect("/download")
+    # Redirect the user to the successful submission page and redirect after 5 seconds
+    return render_template("successful_submission.html")
     
 
 #Create a page that the user is redirected to after submitting a quotation that allows them to download the PDF file
-@app.route("/download", methods=["GET"])
+""" @app.route("/download", methods=["GET"])
 def download():
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
@@ -606,7 +796,7 @@ def download():
     quotation_id = no_of_quotations
     pdf_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
     print(f"PDF Path: {pdf_path}")
-    return render_template("successful_submission.html", pdf_path=pdf_path)
+    return render_template("successful_submission.html", pdf_path=pdf_path) """
 
 # Create Page that allows admins to change the price of products
 @app.route("/price", methods=["GET", "POST"])
@@ -809,8 +999,13 @@ def price_list():
         return render_template("price_list.html", plist=plist, products=products)
     return render_template("price_list.html", products=products)
 
+""" # Split the (submit_quotation_to_db) function into 2 smaller functions.
+# One function will submit the quotation to the database and save to excel only, this one will be called if the user is not an admin
+# The other function will change the quotation's status to approved, remove the existing excel file, replace it with a new one that has the QR code
+# and save the new file as a pdf. This one will be called if the user is an admin
 
-def submit_quotation_to_db(employee_id: int, quotations, sheet) -> bool:
+# Submit function for non admins and without QR code or PDF
+def non_admin_submit(employee_id: int, quotations, sheet) -> bool:
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
     ).all()[0][0]
@@ -821,14 +1016,104 @@ def submit_quotation_to_db(employee_id: int, quotations, sheet) -> bool:
     submission_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
     quotation_file_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
-    pdf_file_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+    # Check access level of the user, if the user is an admin, set the status to approved, else set it to pending
+    if session["access_level"] == "Administrator" or session["access_level"] == "Developer":
+        raise Exception("User is an admin, this function is for non-admins")
+    else:
+        status = "Pending"
     conn.execute(
         text(
-            f"INSERT INTO exported_quotations(submission_date, employee_id, quotation_url, quotation_file_path) VALUES ('{submission_date}', {employee_id}, '{quotation_url}', '{quotation_file_path}')"
+            f"INSERT INTO exported_quotations(submission_date, employee_id, quotation_url, quotation_file_path, status) VALUES ('{submission_date}', {employee_id}, '{quotation_url}', '{quotation_file_path}', '{status}')"
         )
     )
     conn.commit()
+
+    # Save the quotation to the file system
+    quotations.save(filename=quotation_file_path)
+
+    return True
+
+
+def admin_submit(quotation_id: int, quotations, sheet) -> bool:
+    # Check if the user is an admin
+    if session["access_level"] != "Administrator" and session["access_level"] != "Developer":
+        raise Exception("User is not an admin, this function is for admins")
+    # Get the quotation file path
+    quotation_file_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
+    pdf_file_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+
+    # If the quotation with the give ID doesn't exist in the exported quotations table, add it
     
+
+    # Change the status of the quotation to approved
+    conn.execute(
+        text(f"UPDATE exported_quotations SET status = 'Approved' WHERE quotation_id = {quotation_id}")
+    )
+    conn.commit()
+    
+
+
+    # Add QR code to the Excel
+    qr_code = convert_url_to_qr_code(f"http://localhost:5000/view?quotation_id={quotation_id}")
+    path = f"{quotation_dir}/{quotation_id}.png"
+    qr_code = qr_code.save(path, "PNG")
+    img = openpyxl.drawing.image.Image(path)
+    img.anchor = "C24"
+    img.height = 100
+    img.width = 100
+    sheet.add_image(img)
+    
+    # If the excel file doesn't exist, make it and save it
+    if not os.path.exists(quotation_file_path):
+        #Workesheet object has no attribute save
+        quotations.save(filename=quotation_file_path)
+
+
+    # Open Microsoft Excel
+    initialize_com()
+    excel = win32com.client.Dispatch("Excel.Application")
+    excel.Visible = False
+    quotation_file_path = os.path.abspath(quotation_file_path)
+    pdf_file_path = os.path.abspath(pdf_file_path)
+    sheets = excel.Workbooks.Open(quotation_file_path)
+    # Get all worksheets
+    work_sheets = sheets.Worksheets
+
+    # Convert into PDF File
+    # Merge all the worksheets into one PDF
+    sheets.ExportAsFixedFormat(0, pdf_file_path)
+
+"""
+
+def submit_quotation_to_db(employee_id: int, quotations, sheet, sent_to_approve = False) -> bool:
+    no_of_quotations = conn.execute(
+        text("SELECT MAX(quotation_id) FROM exported_quotations")
+    ).all()[0][0]
+    if not no_of_quotations:
+        no_of_quotations = 0
+    if not sent_to_approve:
+        quotation_id = no_of_quotations + 1
+    else:
+        quotation_id = no_of_quotations
+    submission_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
+    quotation_file_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
+    pdf_file_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+    # Check access level of the user, if the user is an admin, set the status to approved, else set it to pending
+    if session["access_level"] == "Administrator" or session["access_level"] == "Developer":
+        status = "Approved"
+    else:
+        status = "Pending"
+    if not sent_to_approve:
+        conn.execute(
+            text(
+                f"INSERT INTO exported_quotations(submission_date, employee_id, quotation_url, quotation_file_path, status) VALUES ('{submission_date}', {employee_id}, '{quotation_url}', '{quotation_file_path}', '{status}')"
+            )
+        )
+        conn.commit()
+    
+
+    # Save the quotation to the file system
     qr_code = convert_url_to_qr_code(quotation_url)
     path = f"{quotation_dir}/{quotation_id}.png"
     qr_code = qr_code.save(path, "PNG")
@@ -861,7 +1146,8 @@ def submit_quotation_to_db(employee_id: int, quotations, sheet) -> bool:
     # Convert into PDF File
     # Merge all the worksheets into one PDF
     sheets.ExportAsFixedFormat(0, pdf_file_path)
-    
+    # Close the Excel application
+    excel.Quit()
     return pdf_file_path
 
 
@@ -898,3 +1184,62 @@ def convert_url_to_qr_code(url: str, rounded_corners=True, logo_path=None) -> PI
         img = qr.make_image()
     print(type(img))
     return img
+
+
+
+"""
+DONE: Modify the database schema:
+
+Add a new table for pending quotations
+Add a status field to the existing quotations table (e.g., 'pending', 'approved', 'rejected')
+
+
+DONE: Update the quotation creation process:
+
+When a non-authorized user creates a quotation, save it to the pending quotations table instead of directly submitting it
+Assign a 'pending' status to these quotations
+
+
+DONE: Create a pending queue interface:
+
+Develop a new page or section for authorized users to view pending quotations
+This page should list all quotations with 'pending' status
+
+
+DONE: Implement approval/rejection functionality:
+
+Add buttons or controls for authorized users to approve or reject pending quotations
+When approved, move the quotation from the pending table to the main quotations table and update its status
+If rejected, either delete the pending quotation or mark it as rejected
+
+
+DONE: Modify user permissions:
+
+Ensure that only authorized users can access the pending queue and approve/reject quotations
+Update your access control logic to reflect these new permissions
+
+
+DONE: Update the quotation viewing process:
+
+Modify the existing quotation view to show the status of each quotation
+Potentially hide or visually distinguish pending quotations from approved ones
+
+
+Notification system (optional):
+
+Implement a way to notify authorized users when new pending quotations are created
+Notify the creating user when their quotation is approved or rejected
+
+
+Reporting and analytics (optional):
+
+Add functionality to track metrics like approval rates, time to approval, etc.
+This could be used as a data science project of sorts. Who approves what and in how long. On average, etc.
+
+TODO: Add a search quotations option that allows you to download a quotation by entering the quotation ID or search by date
+
+TODO: Make all prices editable within Quotation creation page
+
+TODO: Admin can approve or reject price offer with a single click instead of editing prices manually
+
+"""
