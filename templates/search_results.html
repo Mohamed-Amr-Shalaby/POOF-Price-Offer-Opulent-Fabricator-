@@ -41,7 +41,7 @@
         }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 
 <body>
@@ -54,27 +54,6 @@
             <a href = "/logout" class = "btn btn-primary">Logout</a>
         </div>
     </nav>
-    <div class="bg-image img-fluid" style="max-width: 100%;">
-        <img src="{{url_for('static', filename = 'welcome.jpg')}}" class="w-100" />
-        <div class="mask">
-            <div class="d-flex align-items-center h-100" style="padding-left: 5%;">
-                <h1 class = "text-black" style="color: black;">Hello, {{ name }}! <br><br><br> How can I help you today?</h1>
-            </div>
-        </div>
-    </div>
-    <div class="container-fluid d-flex align-items-center justify-content-center" style="background-color: white; min-height: 10rem;">
-        <div class="row text-center align-items-center flex-fill">
-            <div class="col-4">
-                <a href = "https://multimedicasco.com" target="_blank" class = "btn btn-primary flex-fill" style="background-color: #550BA1;">Visit our website</a>
-            </div>
-            <div class="col-4">
-                <a href = "/task" class = "btn btn-primary flex-fill" style="background-color: #550BA1;">Enter Data</a>
-            </div>
-            <div class="col-4">
-                <a href = "/price_list" class = "btn btn-primary flex-fill" style="background-color: #550BA1;">View Price List</a>
-            </div>
-        </div>
-    </div>
     <div class="container-fluid d-flex align-items-center justify-content-center" style="background-color: white; min-height: 10rem;">
         <div class="row text-center align-items-center flex-fill">
             <table class = "table table-striped">
@@ -155,37 +134,20 @@
                     <br>
                     <div class="row">
                         <div class="col-4">
-                            <select class="form-select" name = "current_status" aria-label="Default select example">
-                                <option disabled selected>Choose status</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Approved">Approved</option>
-                            </select>
+                            <input type = "text" name = "current_status" class = "form-control" placeholder = "Current Status">
                         </div>
                         <div class="col-4">
-                            <select class="form-select" name = "approved_by" aria-label="Default select example">
-                                <option disabled selected>Approved By</option>
-                                {% for admin in admins %}
-                                    <option value="{{ admin[0] }}">{{ admin[0] }}</option>
-                                {% endfor %}
-                            </select>
+                            <input type = "text" name = "approved_by" class = "form-control" placeholder = "Approved By">
                         </div>
                         <div class="col-4">
-                            <select class="form-select" name = "user_option" aria-label="Default select example">
-                                <option disabled selected>Submit by</option>
-                                {% for user_option in users %}
-                                    <option value="{{ user_option[0] }}">{{ user_option[0] }}</option>
-                                {% endfor %}
-                            </select>
+                            <input type = "text" name = "submitted_by" class = "form-control" placeholder = "Submitted By">
                         </div>
                     </div>
-                    <br>
                     <div class="row">
-                        <div>
+                        <div class="col-4">
                             <button type = "submit" class = "btn btn-primary">Search</button>
                         </div>
                     </div>
-                    <br>
-                    <br>
                 </form>
             </div>
         </div>

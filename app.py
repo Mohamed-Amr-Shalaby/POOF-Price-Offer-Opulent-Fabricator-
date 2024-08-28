@@ -66,6 +66,14 @@ except ValueError:
 
 conn = engine.connect()
 
+# Keep track of the quotation ID
+no_of_quotations = conn.execute(
+    text("SELECT MAX(quotation_id) FROM exported_quotations")
+).all()[0][0]
+if not no_of_quotations:
+    no_of_quotations = 0
+quotation_id = no_of_quotations + 1
+
 # Connect Flask
 app = Flask(__name__)
 
@@ -76,8 +84,6 @@ Session(app)
 
 # TODO: Add a function that allows user to display the status of the 10 most recent quotations and allow them to download the PDF file
 # This function should only allow the user to download the PDF file if the status is approved
-def view_quotations():
-    ... 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -117,15 +123,105 @@ def index():
                 approved_by = approved_by[0][0]
             # If the status is approved, add the quotation to the list of new quotations
             new_quotations.append([quotation[0], quotation[1], employee[0], quotation[5], quotation[3], pdf_path, approved_by])
-        print(f"New Quotations: {new_quotations}")
         user = session["access_level"]
         if user == "Developer" or user == "Administrator":
             user = "Administrator"
-        print(f"User: {user}")
-        return render_template("index.html", quotations=new_quotations, user=user, name=name)
+        # Pass available options 
+        # Get all admins from the database that have already submit
+        admins = conn.execute(text("SELECT Employee_Name FROM authorized_personnel WHERE Authority_Level = 'Administrator' OR Authority_level = 'Developer'")).all()
+        conn.commit()
+        # Get all users from the database
+        users = conn.execute(text("SELECT Employee_Name FROM authorized_personnel")).all()
+        conn.commit()
+
+        return render_template("index.html", quotations=new_quotations, user=user, name=name, admins=admins, users=users)
     elif request.method == "POST":
         return redirect("/review")
     # Create a page that displays the status of the 10 most recent quotations and allows the user to download the PDF file if the status is approved
+
+@app.route("/search", methods=["GET", "POST"])
+def search():
+    quotation_id = request.form.get("quotation_id")
+    from_date = request.form.get("from_date")
+    to_date = request.form.get("to_date")
+    employee_name = request.form.get("user_option")
+    current_status = request.form.get("current_status")
+    approved_by = request.form.get("approved_by")
+    name = session["name"].split(" ")[0]
+    user = session["access_level"]
+    user = session["access_level"]
+    if user == "Developer" or user == "Administrator":
+        user = "Administrator"
+    sets = []
+    # Rewrite the Search function to accomodate the date range and the multiple choice options
+    
+    if quotation_id:
+        quotation_id = set(conn.execute(text(f"SELECT * FROM exported_quotations WHERE quotation_id = {quotation_id}")).all())
+        conn.commit()
+    if submission_date:
+        submission_date = conn.execute(text(f"SELECT * FROM exported_quotations WHERE submission_date LIKE '%{submission_date}'%")).all()
+        conn.commit()
+        submission_date = set(submission_date)
+        sets.append(submission_date)
+    if employee_name:
+        employee_name = conn.execute(text(f"""SELECT 
+                                                exported_quotations.quotation_id,
+                                                exported_quotations.submission_date,
+                                                exported_quotations.quotation_url,
+                                                exported_quotations.quotation_file_path,
+                                                authorized_personnel.Employee_Name,
+                                                authorized_personnel.Authority_Level
+                                            FROM 
+                                                poof_schema.exported_quotations
+                                            JOIN 
+                                                poof_schema.authorized_personnel
+                                            ON 
+                                                exported_quotations.employee_id = authorized_personnel.employee_id
+                                            WHERE 
+                                                authorized_personnel.Employee_Name LIKE '%{employee_name}%'""")).all()
+        conn.commit()
+        employee_name = set(employee_name)
+        sets.append(employee_name)
+    if current_status:
+        current_status = conn.execute(text(f"SELECT * FROM exported_quotations WHERE status = '{current_status}'")).all()
+        conn.commit()
+        current_status = set(current_status)
+        sets.append(current_status)
+    if approved_by:
+        approved_by = conn.execute(text(f"SELECT * FROM exported_quotations WHERE approved_by LIKE '%{approved_by}%'")).all()
+        conn.commit()
+        approved_by = set(approved_by)
+        sets.append(approved_by)
+
+    print(sets)
+    non_empties = []
+    for x in sets:
+        if x == set():
+            continue
+        sets.append(x)
+    if non_empties:
+        result = set.intersection(*non_empties)
+    if quotation_id:
+        result = quotation_id
+    new_quotations = []
+    # Create a new list that fits the schema of the frontend for ease of use
+    for quotation in result:
+        # Get the employee name
+        employee = conn.execute(text(f"SELECT Employee_Name FROM authorized_personnel WHERE employee_id = {quotation[2]}")).all()
+        conn.commit()
+        employee = employee[0]
+        # Add quotation to list of quotations (list of lists)
+        pdf_path = os.path.join(quotation_dir, f"{quotation[0]}.pdf")
+        # If the status is approved, add who it's approved by
+        approved_by = None
+        if quotation[5] == "Approved":
+            approved_by = conn.execute(text(f"SELECT approved_by FROM exported_quotations WHERE quotation_id = {quotation[0]}")).all()
+            conn.commit()
+            approved_by = approved_by[0][0]
+        # If the status is approved, add the quotation to the list of new quotations
+        new_quotations.append([quotation[0], quotation[1], employee[0], quotation[5], quotation[3], pdf_path, approved_by])
+    
+    return render_template("search_results.html", quotations=new_quotations, user=user, name=name)
 
 @app.route("/review", methods=["GET", "POST"])
 def review_quotation():
@@ -196,7 +292,7 @@ def review_quotation():
         for entry in entries:
             if entry[2] is None:
                 continue
-            total += entry[4]
+            total += int(float(entry[4]))
         vat = total * 0.14
         total += vat
         quotation_pdf = os.path.join(quotation_dir, f"{quotation_id}.pdf")
@@ -264,7 +360,7 @@ def approve():
         conn.execute(text(f"UPDATE exported_quotations SET approved_by = '{session['name']}' WHERE quotation_id = {request.form.get('quotation_id')}"))
         conn.commit()
         # Call the submit function to submit the quotation to the database and export it as a PDF but this time with the new data and the new status
-        submit(sent_to_approve=True)
+        submit(True)
         return redirect("/")
 
 @app.route("/reject", methods=["GET", "POST"])
@@ -508,11 +604,58 @@ def create_quotation():
 @app.route("/preview", methods=["GET", "POST"])
 def preview():
     # Render a preview page that shows the current quotation, an option to go back and edit, and an option to submit
+    # Process current_quotation to put it in the following format: [Product_Name, Description, Price, Quantity, Sum]
+    entries = []
+    for prod in current_quotation:
+        # Get the product name, description, price, quantity, and sum
+        product_name = prod[1]
+        description = prod[3]
+        price = prod[6]
+        quantity = prod[5]
+        sum = prod[7]
+        # Get the image directory
+        dir = conn.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_name = '{product_name}' OR Description = '{description}'"))
+        directories = dir.all()
+        conn.commit()
+        # Add the product to the entries list
+        entries.append(
+            [f"{directories[0][0]}", description, price, quantity, sum]
+        )
+
     return render_template(
         "preview_quotation.html",
         customer_info=current_client,
-        entries=current_quotation,
+        entries=entries,
+        quotation_id = quotation_id
     )
+
+@app.route("/edited_current_quotation", methods=["GET", "POST"])
+def edited_current_quotation():
+    if request.method == "POST":
+        table_data = json.loads(request.form.get("table_data"))
+        current_quotation.clear()
+        for data in table_data:
+            image = data["image"]
+            description = data["description"]
+            price = data["price"]
+            quantity = data["quantity"]
+            sum = data["sum"]
+            remaining_data = conn.execute(text(f"SELECT product_code, product_name, Specs FROM product_list WHERE Description = '{description}'")).all()
+            conn.commit()
+            product_code, product_name, specs = remaining_data[0][0], remaining_data[0][1], remaining_data[0][2]
+            current_quotation.append(
+                [
+                    product_code, # Product Code
+                    product_name, # Product Name
+                    image, # Image
+                    description, # Description
+                    specs, # Specs
+                    quantity, # Quantity
+                    price, # Price
+                    sum # Total
+                ]
+            )
+        return redirect("/export")
 
 
 def vacant_spots(sheet):
@@ -682,8 +825,10 @@ def submit(sent_to_approve=False):
     ).all()[0][0]
     if not no_of_quotations:
         no_of_quotations = 0
-    quotation_id = no_of_quotations + 1
-    
+    if not sent_to_approve:
+        quotation_id = no_of_quotations + 1
+    else:
+        quotation_id = no_of_quotations
     # Open Template file
     quotation_temp = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
     ws = quotation_temp.active
@@ -775,7 +920,11 @@ def submit(sent_to_approve=False):
 
     # If the user is an admin, use the admin_submit function to submit the quotation
     # If the user is not an admin, use the non_admin_submit function to submit the quotation
-    submit_quotation_to_db(session["user_id"], quotation_temp, ws, sent_to_approve)
+    print(f"Sent to Approve: {sent_to_approve}")
+    if sent_to_approve:
+        submit_quotation_to_db(session["user_id"], quotation_temp, ws, True)
+    else:
+        submit_quotation_to_db(session["user_id"], quotation_temp, ws)
 
     # Clear Dataframes
     client_data = pd.DataFrame()
@@ -877,8 +1026,9 @@ def add_product():
 
 # View the Quotation
 @app.route("/view", methods=["GET"])  # expection a url/view?quotation_id=1
-def view_quotation():
-    quotation_id = request.args.get("quotation_id")
+def view_quotation(quotation_id = None):
+    if quotation_id is None:
+        quotation_id = request.args.get("quotation_id")
 
     # Read the excel and put the values into the entries variable
     # Get the path of the quotation file
@@ -971,7 +1121,8 @@ def view_quotation():
     for entry in entries:
         if entry[2] is None:
             continue
-        total += entry[4]
+
+        total += int(float(entry[4]))
     vat = total * 0.14
     total += vat
     quotation_pdf = os.path.join(quotation_dir, f"{quotation_id}.pdf")
@@ -1091,10 +1242,10 @@ def submit_quotation_to_db(employee_id: int, quotations, sheet, sent_to_approve 
     ).all()[0][0]
     if not no_of_quotations:
         no_of_quotations = 0
-    if not sent_to_approve:
+    if sent_to_approve == False:
         quotation_id = no_of_quotations + 1
     else:
-        quotation_id = no_of_quotations
+        quotation_id = no_of_quotations 
     submission_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
     quotation_file_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
@@ -1107,7 +1258,7 @@ def submit_quotation_to_db(employee_id: int, quotations, sheet, sent_to_approve 
     if not sent_to_approve:
         conn.execute(
             text(
-                f"INSERT INTO exported_quotations(submission_date, employee_id, quotation_url, quotation_file_path, status) VALUES ('{submission_date}', {employee_id}, '{quotation_url}', '{quotation_file_path}', '{status}')"
+                f"INSERT INTO exported_quotations(quotation_id, submission_date, employee_id, quotation_url, quotation_file_path, status) VALUES ('{quotation_id}','{submission_date}', {employee_id}, '{quotation_url}', '{quotation_file_path}', '{status}')"
             )
         )
         conn.commit()
@@ -1236,10 +1387,20 @@ Reporting and analytics (optional):
 Add functionality to track metrics like approval rates, time to approval, etc.
 This could be used as a data science project of sorts. Who approves what and in how long. On average, etc.
 
+TODO: Do not allow spaces for usernames, make sure you do that for both frontend and backend validation
+
+DONE: Make all prices editable within Quotation creation page
+
+DONE: Admin can approve or reject price offer with a single click instead of editing prices manually
+
+DONE: If the submit button is clicked twice it crashes the site. Work on fixing that JS That disables button on click!
+
+DONE: Price edits don't work now? For some reason?
+
 TODO: Add a search quotations option that allows you to download a quotation by entering the quotation ID or search by date
 
-TODO: Make all prices editable within Quotation creation page
+TODO: Make the search categories dropdowns instead of text fields.
 
-TODO: Admin can approve or reject price offer with a single click instead of editing prices manually
+TODO: Add a search option from date to date
 
 """

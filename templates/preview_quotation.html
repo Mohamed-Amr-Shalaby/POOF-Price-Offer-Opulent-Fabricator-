@@ -1,92 +1,171 @@
-{% extends "layout.html" %}
-{% block body %}
-<div class="container">
-    <div class="row text-center">
-        <h1>Quotation Preview</h1>
-    </div>
-    <br>
-    <hr>
-    <br>
-    <form action="/edit_quotation" method="post" id="product_details">
-        <div class="row">
-            <label for="date" class="col-sm-1 col-form-label" style="width: 12.499999995%">Quotation Date: </label>
-            <div class="col-3">
-                <input name="date" id="date" type="text" value="{{ customer_info['Date'] }}" class="form-control"
-                    readonly>
-            </div>
-        </div>
-        <br>
-        <div class="row">
-            <label for="cname" class="col-sm-1 col-form-label" style="width: 12.499999995%">Customer Name: </label>
-            <div class="col-3">
-                <input name="cname" id="cname" type="text" value="{{ customer_info['Customer_Name'] }}"
-                    class="form-control" readonly>
-            </div>
-            <label for="cnum" class="col-sm-1 col-form-label" style="width: 12.499999995%">Customer Number: </label>
-            <div class="col-3">
-                <input name="cnum" id="cnum" type="text" value="{{ customer_info['Customer_Number'] }}"
-                    class="form-control" readonly>
-            </div>
-        </div>
-        <br>
-        <div class="row">
-            <label for="rname" class="col-sm-1 col-form-label" style="width: 12.499999995%">Rep Name: </label>
-            <div class="col-3">
-                <input name="rname" id="rname" type="text" value="{{ customer_info['Rep_Name'] }}" class="form-control"
-                    readonly>
-            </div>
-            <label for="rnum" class="col-sm-1 col-form-label" style="width: 12.499999995%">Rep Number: </label>
-            <div class="col-3">
-                <input name="rnum" id="rnum" type="text" value="{{ customer_info['Rep_Number'] }}" class="form-control"
-                    readonly>
-            </div>
-        </div>
-        <br>
-        <br>
-        <input name="product_code" id="product_code" type="text" class="form-control" placeholder="Product Code"
-            value="0" required hidden>
-        <input class="form-control" list="datalistOptions" id="product_names_list" placeholder="Type to search..."
-            hidden>
-        <input name="quantity" id="quantity" type="number" class="form-control" min="1" placeholder="Product Quantity"
-            hidden>
-        <input name="price" id="price" type="number" hidden>
-        <input name="description" id="description" type="text" hidden>
-        <input name="sum" id="sum" type="number" hidden>
-        <input name="image" id="image" type="text" hidden>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Product Name</th>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Sum</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in entries %}
-                <tr>
-                    <td>{{entry[1]}}</td>
-                    <td>{{entry[3]}}</td>
-                    <td>{{entry[5]}}</td>
-                    <td>{{entry[6]}}</td>
-                    <td>{{entry[7]}}</td>
-                </tr>
-                {% endfor %}
+    {% extends "layout.html" %}
+    {% block body %}
 
-            </tbody>
-        </table>
-        <div class="row">
-            <button type="submit" class="btn btn-primary">Back to Edit Quotation</button>
-        </div>
-    </form>
-    <br>
-    <form action="/export" , method="post">
-        <div class="row">
-            <button type="submit" class="btn btn-primary">Submit Quotation</button>
-        </div>
-    </form>
-</div>
+        <div class="container">
+            <div class="row text-center">
+                <h1>Review Quotation</h1>
+            </div>
+            <br>
+            <br>
 
+            <form action = "/edited_current_quotation" method = "post" id = "product_details" onsubmit="disableButtons()">
+                <h2>Client Data</h2>
+                <br>
+                <div class = "row">
+                    <label for = "date" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Quotation Date: </label>
+                    <div class = "col-3">
+                        <input name = "date" id = "date" type="text" value = "{{ customer_info['Date'] }}" class = "form-control" readonly>
+                    </div>
+                </div>
+                <br>
+                <div class = "row">
+                    <label for = "cname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Name: </label>
+                    <div class = "col-3">
+                        <input name = "cname" id = "cname" type="text" value = "{{ customer_info['Customer_Name'] }}" class = "form-control" readonly>
+                    </div>
+                    <label for = "cnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Number: </label>
+                    <div class = "col-3">
+                        <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info['Customer_Number'] }}" class = "form-control" readonly>
+                    </div>
+                </div>
+                <br>
+                <div class = "row">
+                    <label for = "rname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Name: </label>
+                    <div class = "col-3">
+                        <input name = "rname" id = "rname" type="text" value = "{{ customer_info['Rep_Name'] }}" class = "form-control" readonly>
+                    </div>
+                    <label for = "rnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Number: </label>
+                    <div class = "col-3">
+                        <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info['Rep_Number'] }}" class = "form-control" readonly>
+                    </div>
+                </div>
+                <hr>
+                <br>
+                <h2>Product Details</h2>
+                <input type="hidden" name="quotation_id" value="{{quotation_id}}">
+                <input type="hidden" name="table_data" id="table_data">
+                <table class = "table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Description</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Sum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                            {% for entry in entries %}
+                            <tr>
+                                <td style="height: 3%; width: 10%;"><img src="{{url_for('static', filename = entry[0])}}" style="max-width: 100%; height: auto;" onclick="this.requestFullscreen()"></td>
+                                <td style="height: 3%; width: 60%; vertical-align: middle;" contenteditable='false'>{{entry[1]}}</td>
+                                <td class = "price" style="height: 3%; width: 10%; vertical-align: middle;" contenteditable='true'>{{entry[2]}}</td>
+                                <td class = "quantity" style="height: 3%; width: 10%; vertical-align: middle;" contenteditable='true'>{{entry[3]}}</td>
+                                <td class = "sum" style="height: 3%; width: 10%; vertical-align: middle;" contenteditable='false'>{{entry[4]}}</td>
+                            </tr>
+                            {% endfor %}
+                            
+                    </tbody>
+                </table>
+                <div class="row d-flex align-items-center justify-content-center">
+                    <button class="btn btn-primary" style="background-color: #550ba1; color: white;" submit>Submit Quotation</button>
+                </div>
+            </form>
+            <div class="row d-flex align-items-center justify-content-center">
+                <button class="btn btn-primary" style="background-color: #CE141E;" onclick="history.back()">Go back to edit quotation</button>
+            </div>
+            <br>
+        </div>
+    <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const table = document.querySelector('table');
+                const form = document.getElementById('product_details');
+                
+                if (!table || !form) {
+                    console.error('Required elements not found');
+                    return;
+                }
+            
+                table.addEventListener('input', updateSumForEvent);
+                table.addEventListener('blur', updateSumForEvent, true);
+                table.addEventListener('keyup', function(e) {
+                    if (e.key === 'Enter') {
+                        updateSumForEvent(e);
+                        e.preventDefault();
+                    }
+                }, true);
+            
+                function updateSumForEvent(e) {
+                    if (e.target.classList.contains('price') || e.target.classList.contains('quantity')) {
+                        updateSum(e.target.closest('tr'));
+                    }
+                }
+                function disableButtons() {
+                    const buttons = document.querySelectorAll('button');
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                        button.textContent = 'Processing...';  // Optional: change button text to indicate processing
+                    });
+                }
 
-{% endblock %}
+                function updateSum(row) {
+                    const priceCell = row.querySelector('.price');
+                    const quantityCell = row.querySelector('.quantity');
+                    const sumCell = row.querySelector('.sum');
+                    
+                    if (!priceCell || !quantityCell || !sumCell) {
+                        console.error('Missing required cells in row:', row);
+                        return;
+                    }
+                    
+                    const price = parseFloat(priceCell.textContent) || 0;
+                    const quantity = parseFloat(quantityCell.textContent) || 0;
+                    
+                    const sum = price * quantity;
+                    sumCell.textContent = sum.toFixed(2);
+                }
+                // Initial calculation for all rows
+                document.querySelectorAll('table tr').forEach(updateSum);
+            
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    disableButtons(); // Disable the buttons to prevent double submission
+                    
+                    const tableData = [];
+                    table.querySelectorAll('tbody tr').forEach(row => {
+                        const imageCell = row.querySelector('td:nth-child(1) img');
+                        const descriptionCell = row.querySelector('td:nth-child(2)');
+                        const priceCell = row.querySelector('.price');
+                        const quantityCell = row.querySelector('.quantity');
+                        const sumCell = row.querySelector('.sum');
+                        
+                        if (!imageCell || !descriptionCell || !priceCell || !quantityCell || !sumCell) {
+                            console.error('Missing required cells in row:', row);
+                            return;
+                        }
+                        
+                        const rowData = {
+                            image: imageCell.src,
+                            description: descriptionCell.textContent,
+                            price: priceCell.textContent,
+                            quantity: quantityCell.textContent,
+                            sum: sumCell.textContent
+                        };
+                        tableData.push(rowData);
+                    });
+
+                    const jsonData = JSON.stringify(tableData);
+                    console.log("Data being sent:", jsonData);
+                    
+                    const hiddenInput = document.getElementById('table_data');
+                    if (hiddenInput) {
+                        hiddenInput.value = jsonData;
+                        this.submit(); // Proceed with form submission after disabling button
+                    } else {
+                        console.error('Hidden input for table data not found');
+                    }
+                });
+            });
+    </script>
+    {% endblock %}
