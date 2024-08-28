@@ -147,6 +147,18 @@ def search():
     employee_name = request.form.get("user_option")
     current_status = request.form.get("current_status")
     approved_by = request.form.get("approved_by")
+    if employee_name == "Submit by":
+        employee_name = None
+    if current_status == "Choose status":
+        current_status = None
+    if approved_by == "Approved By":
+        approved_by = None
+    print(f"Quotation ID: {quotation_id}")
+    print(f"From Date: {from_date}")
+    print(f"To Date: {to_date}")
+    print(f"Employee Name: {employee_name}")
+    print(f"Current Status: {current_status}")
+    print(f"Approved By: {approved_by}")
     name = session["name"].split(" ")[0]
     user = session["access_level"]
     user = session["access_level"]
@@ -155,54 +167,60 @@ def search():
     sets = []
     # Rewrite the Search function to accomodate the date range and the multiple choice options
     
+    # If a quotation number has been entered, get that quotation
     if quotation_id:
-        quotation_id = set(conn.execute(text(f"SELECT * FROM exported_quotations WHERE quotation_id = {quotation_id}")).all())
+        id = conn.execute(text(f"SELECT * FROM exported_quotations WHERE quotation_id = {quotation_id}")).all()
         conn.commit()
-    if submission_date:
-        submission_date = conn.execute(text(f"SELECT * FROM exported_quotations WHERE submission_date LIKE '%{submission_date}'%")).all()
+        id = set(id)
+        sets.append(id)
+    if from_date and not to_date:
+        return render_template("date_error.html")
+    if not from_date and to_date:
+        return render_template("date_error.html")
+    if from_date and to_date:
+        date_range = conn.execute(text(f"SELECT * FROM exported_quotations WHERE submission_date BETWEEN '{from_date}' AND '{to_date}'")).all()
         conn.commit()
-        submission_date = set(submission_date)
-        sets.append(submission_date)
-    if employee_name:
-        employee_name = conn.execute(text(f"""SELECT 
-                                                exported_quotations.quotation_id,
-                                                exported_quotations.submission_date,
-                                                exported_quotations.quotation_url,
-                                                exported_quotations.quotation_file_path,
-                                                authorized_personnel.Employee_Name,
-                                                authorized_personnel.Authority_Level
-                                            FROM 
-                                                poof_schema.exported_quotations
-                                            JOIN 
-                                                poof_schema.authorized_personnel
-                                            ON 
-                                                exported_quotations.employee_id = authorized_personnel.employee_id
-                                            WHERE 
-                                                authorized_personnel.Employee_Name LIKE '%{employee_name}%'""")).all()
-        conn.commit()
-        employee_name = set(employee_name)
-        sets.append(employee_name)
-    if current_status:
-        current_status = conn.execute(text(f"SELECT * FROM exported_quotations WHERE status = '{current_status}'")).all()
-        conn.commit()
-        current_status = set(current_status)
-        sets.append(current_status)
-    if approved_by:
-        approved_by = conn.execute(text(f"SELECT * FROM exported_quotations WHERE approved_by LIKE '%{approved_by}%'")).all()
-        conn.commit()
-        approved_by = set(approved_by)
-        sets.append(approved_by)
+        date_range = set(date_range)
+        sets.append(date_range)
 
-    print(sets)
-    non_empties = []
-    for x in sets:
-        if x == set():
-            continue
-        sets.append(x)
-    if non_empties:
-        result = set.intersection(*non_empties)
+    if employee_name:
+        employee = conn.execute(text(f"SELECT employee_id FROM authorized_personnel WHERE Employee_Name = '{employee_name}'")).all()
+        conn.commit()
+        employee = employee[0]
+        employee = conn.execute(text(f"SELECT * FROM exported_quotations WHERE employee_id = {employee[0]}")).all()
+        conn.commit()
+        employee = set(employee)
+        sets.append(employee)
+    if current_status:
+        status = conn.execute(text(f"SELECT * FROM exported_quotations WHERE status = '{current_status}'")).all()
+        conn.commit()
+        status = set(status)
+        sets.append(status)
+
+    if approved_by:
+        approved = conn.execute(text(f"SELECT * FROM exported_quotations WHERE approved_by = '{approved_by}'")).all()
+        conn.commit()
+        #Turn the approved by into a set of lists
+        approved = set(approved)
+        sets.append(approved)
+
+    if not sets:
+        return render_template("search_error.html")
+    # If a quotation ID is provided, clear all other search criteria
     if quotation_id:
-        result = quotation_id
+        sets = [sets[0]]
+    # Get only the quotations that are in all the sets
+    result = []
+    for i in range(len(sets)):
+        if i == 0:
+            result = sets[i]
+        else:
+            result = result.intersection(sets[i])
+    # If there are no results, return a page that says there are no results
+    if not result:
+        return render_template("no_results.html")
+    # If there are results, display them
+    
     new_quotations = []
     # Create a new list that fits the schema of the frontend for ease of use
     for quotation in result:
@@ -220,7 +238,8 @@ def search():
             approved_by = approved_by[0][0]
         # If the status is approved, add the quotation to the list of new quotations
         new_quotations.append([quotation[0], quotation[1], employee[0], quotation[5], quotation[3], pdf_path, approved_by])
-    
+    # Sort quotations by submission date descending
+    new_quotations.sort(key=lambda x: x[1], reverse=True)
     return render_template("search_results.html", quotations=new_quotations, user=user, name=name)
 
 @app.route("/review", methods=["GET", "POST"])
