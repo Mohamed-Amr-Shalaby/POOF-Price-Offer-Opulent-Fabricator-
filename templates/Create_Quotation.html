@@ -49,7 +49,7 @@
             <div class="row">
                 <label for="product_code" class="col-sm-1 col-form-label">Product Code</label>
                 <div class="col-4">
-                    <input name = "product_code" id = "product_code" type="text" class="form-control" placeholder="Product Code" value = "0" required>
+                    <input name = "product_code" id = "product_code" type="number" class="form-control" placeholder="Product Code" value = "0" required>
                 </div>
                 <label for="product_name" class="col-sm-1 col-form-label">Product Name</label>
                 <div class="col-4">
@@ -74,6 +74,7 @@
         </form>
         <script type = "text/javascript">
             $(document).on('change', '#product_names_list', function(){
+                // account for the fact that the value is a string representation of a float
                 var options = $('#datalistOptions')[0].options;
                 for (var i=0;i<options.length;i++){
                     if (options[i].value == $(this).val()) 

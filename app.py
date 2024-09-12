@@ -18,7 +18,9 @@ import pythoncom
 import win32com.client
 import math
 import json
+import PyPDF2
 from dotenv import load_dotenv
+
 
 
 # TODO: Learn what a logger is. (python logging module)
@@ -29,14 +31,22 @@ def initialize_com():
 
 
 #  Create engine
-df = pd.read_excel("D:/Work/POOF/complete_product_list_spreadsheet_updated.xlsx")
+df = pd.read_excel("static/complete_product_list_spreadsheet_updated.xlsx")
 current_quotation = []
-current_client = {
+current_cover_letter_info = {
     "Date": "",
     "Customer_Name": "",
     "Customer_Number": "",
     "Rep_Name": "",
     "Rep_Number": "",
+    "Valid_For": "",
+    "Supply": "",
+    "Currency": "",
+    "Delivery": "",
+    "Payment_Terms": "",
+    "Payment_Method": "",
+    "Warranty": "",
+    "VAT": 0
 }
 
 
@@ -47,15 +57,18 @@ password = os.getenv("PASSWORD")
 schema = os.getenv("SCHEMA")
 
 quotation_dir = "static/quotations"
+brochure_dir = "static/brochures"
 excel_quotation_dir = "static/editable_quotations"
 if not os.path.exists(quotation_dir):
     os.mkdir(quotation_dir)
-
+if not os.path.exists(brochure_dir):
+    os.mkdir(brochure_dir)
 
 engine = create_engine(
     f"mysql+mysqlconnector://{username}:{password}@127.0.0.1/{schema}"
 )
-#df.to_sql(name="product_list", con=engine, index=False)
+#Run first time to create the table
+# df.to_sql(name="product_list", con=engine, index=False)
 
 
 try:
@@ -63,7 +76,7 @@ try:
 except ValueError:
     pass
 
-
+# Create a connection to the database
 conn = engine.connect()
 
 # Keep track of the quotation ID
@@ -153,12 +166,6 @@ def search():
         current_status = None
     if approved_by == "Approved By":
         approved_by = None
-    print(f"Quotation ID: {quotation_id}")
-    print(f"From Date: {from_date}")
-    print(f"To Date: {to_date}")
-    print(f"Employee Name: {employee_name}")
-    print(f"Current Status: {current_status}")
-    print(f"Approved By: {approved_by}")
     name = session["name"].split(" ")[0]
     user = session["access_level"]
     user = session["access_level"]
@@ -248,41 +255,67 @@ def review_quotation():
         quotation_id = request.form.get("quotation_id")
         # Read the excel and put the values into the entries variable
         # Get the path of the quotation file
-        path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
-        path = os.path.abspath(path)
+        quotation_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
+        quotation_path = os.path.abspath(quotation_path)
         # Open the quotation file
-        requested_quotation = openpyxl.load_workbook(path)
-        sheet = requested_quotation.active
+        requested_quotation = openpyxl.load_workbook(quotation_path)
+        #Second sheet (skip cover letter)
+        sheet = requested_quotation.worksheets[1]
         # Assign the values of the cells to the client_data dictionary
         Date_Cell = sheet["I5"]
         Customer_Name_Cell = sheet["A9"]
         Customer_Number_Cell = sheet["C9"]
         Rep_Name_Cell = sheet["A12"]
         Rep_Number_Cell = sheet["C12"]
-        Quotation_Number_Cell = sheet["G5"]
+        # Assign the values of the cover letter to the cover_letter_info dictionary
+        # Open the cover letter and get the values of the cells
+        cover_letter_sheet = requested_quotation.worksheets[0]
+        valid_for = cover_letter_sheet["B7"]
+        supply = cover_letter_sheet["B8"]
+        currency = cover_letter_sheet["B9"]
+        delivery = cover_letter_sheet["B10"]
+        payment_terms = cover_letter_sheet["B11"]
+        payment_method = cover_letter_sheet["B12"]
+        warranty = cover_letter_sheet["B13"]
 
         # Create a dictionary to store the client data
-        client_data = {
+        current_cover_letter_info = {
             "Date": None,
             "Customer_Name": None,
             "Customer_Number": None,
             "Rep_Name": None,
             "Rep_Number": None,
+            "Valid_For": None,
+            "Supply": None,
+            "Currency": None,
+            "Delivery": None,
+            "Payment_Terms": None,
+            "Payment_Method": None,
+            "Warranty": None
         }
-
-        # Assign the values of the cells to the client_data dictionary
-        client_data["Date"] = Date_Cell.value
-        client_data["Customer_Name"] = Customer_Name_Cell.value
-        client_data["Customer_Number"] = Customer_Number_Cell.value
-        client_data["Rep_Name"] = Rep_Name_Cell.value
-        client_data["Rep_Number"] = Rep_Number_Cell.value
+        # Open the cover letter and get the values of the cells
+        
+        # Assign the values of the cells to the cover_letter_info dictionary
+        current_cover_letter_info["Date"] = Date_Cell.value
+        current_cover_letter_info["Customer_Name"] = Customer_Name_Cell.value
+        current_cover_letter_info["Customer_Number"] = Customer_Number_Cell.value
+        current_cover_letter_info["Rep_Name"] = Rep_Name_Cell.value
+        current_cover_letter_info["Rep_Number"] = Rep_Number_Cell.value
+        # Cover letter data
+        current_cover_letter_info["Valid_For"] = valid_for.value
+        current_cover_letter_info["Supply"] = supply.value
+        current_cover_letter_info["Currency"] = currency.value
+        current_cover_letter_info["Delivery"] = delivery.value
+        current_cover_letter_info["Payment_Terms"] = payment_terms.value
+        current_cover_letter_info["Payment_Method"] = payment_method.value
+        current_cover_letter_info["Warranty"] = warranty.value
 
         entries = []
         # Get the values of the cells and put them into the entries list
         # Repeat this for all sheets in the quotation and skip empty lines. Don't look for an image directory if there's no price (aka it's a spec)
         # Get number of sheets in the quotation and iterate over them
         num_sheets = len(requested_quotation.sheetnames)
-        for i in range(num_sheets):
+        for i in range(1, num_sheets):  # Skip the first page (cover page)
             sheet = requested_quotation.worksheets[i]
             rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10)
             for i, row in enumerate(rows):
@@ -315,12 +348,11 @@ def review_quotation():
         vat = total * 0.14
         total += vat
         quotation_pdf = os.path.join(quotation_dir, f"{quotation_id}.pdf")
-        return render_template("review_quotation.html", entries=entries, total=total, vat=vat, quotation_pdf=quotation_pdf, quotation_id=quotation_id, customer_info=client_data)
+        return render_template("review_quotation.html", entries=entries, total=total, vat=vat, quotation_pdf=quotation_pdf, quotation_id=quotation_id, current_cover_letter_info=current_cover_letter_info)
 
 @app.route("/approve", methods=["GET", "POST"])
-def approve():
+def approve():  
     if request.method == "POST":
-        print(f"Quotation ID: {request.form.get('quotation_id')}")
         table_data = json.loads(request.form.get("table_data"))
         # Delete the quotation file from the editable_quotations directory and the PDF file from the quotations directory, and the QR code
         os.remove(os.path.join(excel_quotation_dir, f"{request.form.get('quotation_id')}.xlsx"))
@@ -329,7 +361,6 @@ def approve():
         # Put the data in its proper form in product data and client data and clear the current quotation and client info then call the submit function
         # Clear the current quotation and client info
         current_quotation.clear()
-        print(f"Current Client: {current_client}")  
         # Get the data from the table_data and put it in the current_quotation and current_client dictionaries
         """
         current_quotation.append(
@@ -367,12 +398,18 @@ def approve():
                     sum # Total
                 ]
             )
-        current_client["Date"] = request.form.get("date")
-        current_client["Customer_Name"] = request.form.get("customer_name")
-        current_client["Customer_Number"] = request.form.get("customer_number")
-        current_client["Rep_Name"] = request.form.get("rep_name")
-        current_client["Rep_Number"] = request.form.get("rep_number")
-
+        current_cover_letter_info["Date"] = request.form.get("date")
+        current_cover_letter_info["Customer_Name"] = request.form.get("cname")
+        current_cover_letter_info["Customer_Number"] = request.form.get("cnum")
+        current_cover_letter_info["Rep_Name"] = request.form.get("rname")
+        current_cover_letter_info["Rep_Number"] = request.form.get("rnum")
+        current_cover_letter_info["Valid_For"] = request.form.get("valid_for")
+        current_cover_letter_info["Supply"] = request.form.get("supply")
+        current_cover_letter_info["Currency"] = request.form.get("currency")
+        current_cover_letter_info["Delivery"] = request.form.get("delivery")
+        current_cover_letter_info["Payment_Terms"] = request.form.get("payment_terms")
+        current_cover_letter_info["Payment_Method"] = request.form.get("payment_method")
+        current_cover_letter_info["Warranty"] = request.form.get("warranty")
         # Update the status of the quotation to approved
         conn.execute(text(f"UPDATE exported_quotations SET status = 'Approved' WHERE quotation_id = {request.form.get('quotation_id')}"))
         # Update approved by to the name of the user
@@ -400,8 +437,6 @@ def login():
     # If the user is not logged in, redirect to login page
     if request.method == "GET":
         if session.get("name") and session.get("access_level"):
-            print(session.get("name"))
-            print(session.get("access_level"))
             return render_template("index.html")
         return render_template("signIn.html")
 
@@ -420,12 +455,10 @@ def login():
 
         # Ensure username and password were submitted
         if not name or not Pass:
-            print("Name or Pass is empty")
             return render_template("invalid_credentials.html", name=name, Pass=Pass)
 
         # Ensure username exists and password is correct
         if len(authority) != 1 or not check_password_hash(authority[0][2], Pass):
-            print("Wrong name or wrong Password")
             return render_template("invalid_credentials.html", authority=authorityres)
 
         session["user_id"] = authority[0][0]
@@ -447,7 +480,6 @@ def register():
         cpassword = request.form.get("up2")
         authority = request.form.get("authority")
         hash = generate_password_hash(password, method="pbkdf2", salt_length=16)
-        # print(hash)
         if not name:
             return render_template("invalid_credentials.html")
 
@@ -504,16 +536,15 @@ def task():
             case "Administrator":
                 return render_template("admin_options.html")
             case "Data_Entry":
-                return render_template("customer_info.html")
+                return render_template("cover_letter_info.html")
             case _:
                 return render_template("invalid_credentials.html")
 
     elif request.method == "POST":
         choice = request.form.get("task")
-        # print(choice)
         match choice:
             case "create_quotation":
-                return render_template("customer_info.html")
+                return render_template("cover_letter_info.html")
             case "Edit product prices":
                 return render_template("edit_prices.html")
             case "Add new product":
@@ -524,15 +555,47 @@ def task():
                 return render_template("invalid_choice.html")
 
 
-@app.route("/customer_info", methods=["GET", "POST"])
+@app.route("/cover_letter_info", methods=["GET", "POST"])
 def Customer_Info():
     if request.method == "POST":
-        current_client["Date"] = request.form.get("quotation_date")
-        current_client["Customer_Name"] = request.form.get("customer_name")
-        current_client["Customer_Number"] = request.form.get("customer_number")
-        current_client["Rep_Name"] = request.form.get("rep_name")
-        current_client["Rep_Number"] = request.form.get("rep_number")
+        current_cover_letter_info["Date"] = request.form.get("quotation_date")
+        current_cover_letter_info["Customer_Name"] = request.form.get("customer_name")
+        current_cover_letter_info["Customer_Number"] = request.form.get("customer_number")
+        current_cover_letter_info["Rep_Name"] = request.form.get("rep_name")
+        current_cover_letter_info["Rep_Number"] = request.form.get("rep_number")
+        current_cover_letter_info["Valid_For"] = request.form.get("valid_for")
+        current_cover_letter_info["Supply"] = request.form.get("supply")
+        current_cover_letter_info["Currency"] = request.form.get("currency")
+        current_cover_letter_info["Delivery"] = request.form.get("delivery")
+        current_cover_letter_info["Payment_Terms"] = request.form.get("payment_terms")
+        current_cover_letter_info["Payment_Method"] = request.form.get("payment_method")
+        current_cover_letter_info["Warranty"] = request.form.get("warranty")
+        current_cover_letter_info["VAT"] = request.form.get("vat")  
 
+       
+        if not current_cover_letter_info["Valid_For"]:
+            current_cover_letter_info["Valid_For"] = "Valid for 7 days from issue date"
+        else:
+            current_cover_letter_info["Valid_For"] = f"Valid for {current_cover_letter_info['Valid_For']} days from issue date"
+        if not current_cover_letter_info["Supply"]:
+            current_cover_letter_info["Supply"] = "Products in stock"
+        if not current_cover_letter_info["Currency"]:
+            current_cover_letter_info["Currency"] = "Prices are in EGP"
+        else:
+            current_cover_letter_info["Currency"] = f"Prices are in {current_cover_letter_info['Currency']}"
+        if not current_cover_letter_info["Delivery"]:
+            current_cover_letter_info["Delivery"] = "Your location"
+        if not current_cover_letter_info["Payment_Terms"]:
+            current_cover_letter_info["Payment_Terms"] = "Cash on delivery"
+        if not current_cover_letter_info["Warranty"]:
+            current_cover_letter_info["Warranty"] = "12 months against manufacturing defects"
+        else:
+            current_cover_letter_info["Warranty"] = f"{current_cover_letter_info['Warranty']} months against manufacturing defects and does not cover misuse, abuse, or accidents"
+        if not current_cover_letter_info["VAT"] == "VAT is included":
+            current_cover_letter_info["Currency"] += " and VAT is not included"
+        else:
+            current_cover_letter_info["Currency"] += " and VAT is included"
+        current_cover_letter_info["Payment_Method"] = f"Payment is done through {current_cover_letter_info['Payment_Method']}"
         rows = conn.execute(
             text(
                 f"SELECT product_code, product_name FROM product_list ORDER BY product_code ASC"
@@ -540,14 +603,14 @@ def Customer_Info():
         )
         prods = rows.all()
         if (
-            not current_client["Customer_Name"]
-            or not current_client["Date"]
-            or not current_client["Rep_Name"]
-            or not current_client["Rep_Number"]
+            not current_cover_letter_info["Customer_Name"]
+            or not current_cover_letter_info["Date"]
+            or not current_cover_letter_info["Rep_Name"]
+            or not current_cover_letter_info["Rep_Number"]
         ):
             return render_template("insufficient_data.html")
         return render_template(
-            "create_quotation.html", products=prods, customer_info=current_client
+            "create_quotation.html", products=prods, customer_info=current_cover_letter_info
         )
     pass
 
@@ -564,7 +627,7 @@ def edit_quotation():
         return render_template(
             "create_quotation.html",
             products=prods,
-            customer_info=current_client,
+            customer_info=current_cover_letter_info,
             entries=current_quotation,
         )
 
@@ -613,7 +676,7 @@ def create_quotation():
             "create_quotation.html",
             entries=current_quotation,
             products=prods,
-            customer_info=current_client,
+            customer_info=current_cover_letter_info,
         )
 
 
@@ -643,7 +706,7 @@ def preview():
 
     return render_template(
         "preview_quotation.html",
-        customer_info=current_client,
+        customer_info=current_cover_letter_info,
         entries=entries,
         quotation_id = quotation_id
     )
@@ -753,7 +816,6 @@ def add_large_product_to_page(product_specs, biggest_product, ws, num_sheets, sh
                 # Add the product name to the first cell of the page
                 # Only add the product name to the first page
                 if i == current_page_number:
-                    print(f"Product Data:\n {product_data.to_string()}")
                     description = list(product_data.loc[product_data["Description"] == product]["Description"])[0]
                     quantity = list(product_data.loc[product_data["Description"] == product]["Quantity"])[0]
                     price = list(product_data.loc[product_data["Description"] == product]["Price"])[0]
@@ -809,6 +871,13 @@ def submit(sent_to_approve=False):
         "Customer_Number",
         "Rep_Name",
         "Rep_Number",
+        "Valid_For",
+        "Supply",
+        "Currency",
+        "Delivery",
+        "Payment_Terms",
+        "Payment_Method",
+        "Warranty"
     ]
     product_columns = [
 
@@ -822,23 +891,30 @@ def submit(sent_to_approve=False):
         "Total",
     ]
 
-    client_list = [
+    cover_letter_data_list = [
         [
-            current_client["Date"],
-            current_client["Customer_Name"],
-            current_client["Customer_Number"],
-            current_client["Rep_Name"],
-            current_client["Rep_Number"],
+            current_cover_letter_info["Date"],
+            current_cover_letter_info["Customer_Name"],
+            current_cover_letter_info["Customer_Number"],
+            current_cover_letter_info["Rep_Name"],
+            current_cover_letter_info["Rep_Number"],
+            current_cover_letter_info["Valid_For"],
+            current_cover_letter_info["Supply"],
+            current_cover_letter_info["Currency"],
+            current_cover_letter_info["Delivery"],
+            current_cover_letter_info["Payment_Terms"],
+            current_cover_letter_info["Payment_Method"],
+            current_cover_letter_info["Warranty"]
         ]
     ]
-    client_data = pd.DataFrame(client_list, columns=client_columns)
+    cover_letter_data = pd.DataFrame(cover_letter_data_list, columns=client_columns)
     product_data = pd.DataFrame(current_quotation, columns=product_columns)
     # Export the dataframes to an Excel file, then save the file as a pdf
     # and save the pdf to the database alongside the name of the user and the date of submission
     # Add serializtion to the quotation files
     # Clear the current quotation and client info
     current_quotation.clear()
-    current_client.clear()
+    current_cover_letter_info.clear()
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
     ).all()[0][0]
@@ -850,7 +926,7 @@ def submit(sent_to_approve=False):
         quotation_id = no_of_quotations
     # Open Template file
     quotation_temp = openpyxl.load_workbook("D:/Work/POOF/Quotation_Template.xlsx")
-    ws = quotation_temp.active
+    ws = quotation_temp.worksheets[0]
     sheets = [ws]
     Date_Cell = ws["I5"]
     Customer_Name_Cell = ws["A9"]
@@ -858,16 +934,43 @@ def submit(sent_to_approve=False):
     Rep_Name_Cell = ws["A12"]
     Rep_Number_Cell = ws["C12"]
     Quotation_Number_Cell = ws["G5"]
-    
     # Add the client data to the quotation template
-    Date_Cell.value = client_data["Date"][0]
-    Customer_Name_Cell.value = client_data["Customer_Name"][0]
-    Customer_Number_Cell.value = client_data["Customer_Number"][0]
-    Rep_Name_Cell.value = client_data["Rep_Name"][0]
-    Rep_Number_Cell.value = client_data["Rep_Number"][0]
+    Date_Cell.value = cover_letter_data["Date"][0]
+    Customer_Name_Cell.value = cover_letter_data["Customer_Name"][0]
+    Customer_Number_Cell.value = cover_letter_data["Customer_Number"][0]
+    Rep_Name_Cell.value = cover_letter_data["Rep_Name"][0]
+    Rep_Number_Cell.value = cover_letter_data["Rep_Number"][0]
     Quotation_Number_Cell.value = quotation_id
     
+    # Open the cover letter and get the values of the cells
+    cover_letter = openpyxl.load_workbook("static/cover_letter.xlsx")
+    cover_letter_sheet = cover_letter.active
+    cover_letter_date = cover_letter_sheet["D2"]
+    cover_letter_customer_name = cover_letter_sheet["D3"]
+    cover_letter_rep_name = cover_letter_sheet["B2"]
+    cover_letter_rep_number = cover_letter_sheet["B3"]
+    valid_for = cover_letter_sheet["B7"]
+    supply = cover_letter_sheet["B8"]
+    currency = cover_letter_sheet["B9"]
+    delivery = cover_letter_sheet["B10"]
+    payment_terms = cover_letter_sheet["B11"]
+    payment_method = cover_letter_sheet["B12"]
+    warranty = cover_letter_sheet["B13"]
+
     
+    # Assign data to cover letter cells
+    cover_letter_date.value = cover_letter_data["Date"][0]
+    cover_letter_customer_name.value = cover_letter_data["Customer_Name"][0]
+    cover_letter_rep_name.value = cover_letter_data["Rep_Name"][0]
+    cover_letter_rep_number.value = cover_letter_data["Rep_Number"][0]
+    valid_for.value = cover_letter_data["Valid_For"][0]
+    supply.value = cover_letter_data["Supply"][0]
+    currency.value = cover_letter_data["Currency"][0]
+    delivery.value = cover_letter_data["Delivery"][0]
+    payment_terms.value = cover_letter_data["Payment_Terms"][0]
+    payment_method.value = cover_letter_data["Payment_Method"][0]
+    warranty.value = cover_letter_data["Warranty"][0]
+
     # Get the true number of rows by unpacking product data from the database
     product_specs = {}
     for code in product_data["Product_Code"]:
@@ -931,7 +1034,6 @@ def submit(sent_to_approve=False):
         for row in sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10):
             if row[8].value is None:
                 break
-            print(f"Row: {row[8].value}")
             total += int(float(row[8].value))
     # Add total to the last page only at cell I23
     ws["I23"].value = total
@@ -939,14 +1041,13 @@ def submit(sent_to_approve=False):
 
     # If the user is an admin, use the admin_submit function to submit the quotation
     # If the user is not an admin, use the non_admin_submit function to submit the quotation
-    print(f"Sent to Approve: {sent_to_approve}")
     if sent_to_approve:
-        submit_quotation_to_db(session["user_id"], quotation_temp, ws, True)
+        submit_quotation_to_db(session["user_id"], quotation_temp, cover_letter, ws, cover_letter_sheet, True)
     else:
-        submit_quotation_to_db(session["user_id"], quotation_temp, ws)
+        submit_quotation_to_db(session["user_id"], quotation_temp, cover_letter, ws, cover_letter_sheet)
 
     # Clear Dataframes
-    client_data = pd.DataFrame()
+    cover_letter_data = pd.DataFrame()
     product_data = pd.DataFrame()
     
     # Redirect the user to the successful submission page and redirect after 5 seconds
@@ -963,7 +1064,6 @@ def download():
         no_of_quotations = 0
     quotation_id = no_of_quotations
     pdf_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
-    print(f"PDF Path: {pdf_path}")
     return render_template("successful_submission.html", pdf_path=pdf_path) """
 
 # Create Page that allows admins to change the price of products
@@ -1102,20 +1202,32 @@ def view_quotation(quotation_id = None):
                 continue    
             elif price is None:
                 entries.append(
-                    ["bullet.png", description, 0, 0, 0]
+                    ["bullet.png", description, 0, 0, 0, "spec"]
                 )
             else:
                 dir = conn.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_name = '{description}' OR Description = '{description}'"))
                 directories = dir.all()
                 conn.commit()
-                entries.append(
-                    [f"{directories[0][0]}", description, price, quantity, total]
-                )
+                brochures = conn.execute(text(f"SELECT brochure_directory FROM product_list WHERE product_name = '{description}' OR Description = '{description}'"))
+                brochure = brochures.all()
+                conn.commit()
+                #Check if the product has a brochure
+                brochure = os.path.join(brochure_dir, f"{brochure[0][0]}")
+                print(brochure)
+                print(brochure_dir + "\\")
+                if brochure[:-1] == str(brochure_dir) + "\\":
+                    entries.append(
+                        [f"{directories[0][0]}", description, price, quantity, total, None]
+                    )
+                else:
+                    entries.append(
+                        [f"{directories[0][0]}", description, price, quantity, total, f"{brochure}"]
+                    )
+                
 
     """ 
     # Get the values of the cells and put them into the entries list
     rows = sheet.iter_rows(min_row=14, max_row=21, min_col=1, max_col=10)
-    print("Rows: ", rows)
     for i, row in enumerate(rows):
         if not row[0].value and not row[9].value:
             break
@@ -1128,7 +1240,6 @@ def view_quotation(quotation_id = None):
         dir = conn.execute(text(f"SELECT Image_Directory FROM product_list WHERE product_name = '{description}' OR Description = '{description}'"))
         directories = dir.all()
         conn.commit()
-        print(f"Description: {description}")
         price = row[7].value
         total = row[8].value
         entries.append(
@@ -1255,7 +1366,7 @@ def admin_submit(quotation_id: int, quotations, sheet) -> bool:
 
 """
 
-def submit_quotation_to_db(employee_id: int, quotations, sheet, sent_to_approve = False) -> bool:
+def submit_quotation_to_db(employee_id: int, quotations, cover_letter_workbook, sheet, cover_letter_sheet, sent_to_approve = False) -> bool:
     no_of_quotations = conn.execute(
         text("SELECT MAX(quotation_id) FROM exported_quotations")
     ).all()[0][0]
@@ -1269,7 +1380,10 @@ def submit_quotation_to_db(employee_id: int, quotations, sheet, sent_to_approve 
     quotation_url = f"http://localhost:5000/view?quotation_id={quotation_id}"  # TODO: Change this to the actual URL
     quotation_file_path = os.path.join(excel_quotation_dir, f"{quotation_id}.xlsx")
     pdf_file_path = os.path.join(quotation_dir, f"{quotation_id}.pdf")
+    cover_letter_path = os.path.join(quotation_dir, f"{quotation_id}_cover_letter.xlsx")
+    cover_letter_path_pdf = os.path.join(quotation_dir, f"{quotation_id}_cover_letter.pdf")
     # Check access level of the user, if the user is an admin, set the status to approved, else set it to pending
+    
     if session["access_level"] == "Administrator" or session["access_level"] == "Developer":
         status = "Approved"
     else:
@@ -1281,41 +1395,52 @@ def submit_quotation_to_db(employee_id: int, quotations, sheet, sent_to_approve 
             )
         )
         conn.commit()
-    
 
     # Save the quotation to the file system
     qr_code = convert_url_to_qr_code(quotation_url)
     path = f"{quotation_dir}/{quotation_id}.png"
     qr_code = qr_code.save(path, "PNG")
-    print(type(qr_code))
-    print(path)
     # Add QR code to the Excel
 
     img = openpyxl.drawing.image.Image(path)
-    img.anchor = "C24"
+    img.anchor = "A24"
     img.height = 100
     img.width = 100
     sheet.add_image(img)
 
     # Save the quotation to the file system
     quotations.save(filename=quotation_file_path)
+    # Save the cover letter to the file system
+    cover_letter_workbook.save(filename=cover_letter_path) # Worksheets object has no attribute save
 
     # Open Microsoft Excel
 
     quotation_file_path = os.path.abspath(quotation_file_path)
+    cover_letter_path = os.path.abspath(cover_letter_path)
+    cover_letter_path_pdf = os.path.abspath(cover_letter_path_pdf)
     pdf_file_path = os.path.abspath(pdf_file_path)
 
     initialize_com()
     excel = win32com.client.Dispatch("Excel.Application")
     excel.Visible = False
 
-    sheets = excel.Workbooks.Open(quotation_file_path)
-    # Get all worksheets
-    work_sheets = sheets.Worksheets
+    
+    # Get all worksheets add the cover letter to the first page
+    sheets = excel.Workbooks.Open(quotation_file_path) #This is without the cover letter
+    # Add the cover letter sheet to the first page
+    cover_letter = excel.Workbooks.Open(cover_letter_path)
+    cover_letter_sheet = cover_letter.Worksheets
+    cover_letter_sheet.Copy(Before=sheets.Worksheets[0])
+    cover_letter.Save()
+    sheets.Save()
+    sheets.ExportAsFixedFormat(0, pdf_file_path)
+    cover_letter.Close(SaveChanges=True)
+    sheets.Close(SaveChanges=True)
 
     # Convert into PDF File
     # Merge all the worksheets into one PDF
-    sheets.ExportAsFixedFormat(0, pdf_file_path)
+    # Export the cover letter as a PDF
+    # Save excel file as xlsx
     # Close the Excel application
     excel.Quit()
     return pdf_file_path
@@ -1352,7 +1477,6 @@ def convert_url_to_qr_code(url: str, rounded_corners=True, logo_path=None) -> PI
         img = qr.make_image(image_factory=StyledPilImage, embeded_image_path=logo_path)
     else:
         img = qr.make_image()
-    print(type(img))
     return img
 
 
@@ -1416,10 +1540,14 @@ DONE: If the submit button is clicked twice it crashes the site. Work on fixing 
 
 DONE: Price edits don't work now? For some reason?
 
-TODO: Add a search quotations option that allows you to download a quotation by entering the quotation ID or search by date
+DONE: Add a search quotations option that allows you to download a quotation by entering the quotation ID or search by date
 
-TODO: Make the search categories dropdowns instead of text fields.
+DONE: Make the search categories dropdowns instead of text fields.
 
-TODO: Add a search option from date to date
+DONE: Add a search option from date to date
+
+TODO: - Checks are issued to account (Add list of accounts and an option to add a new account)
+
+DONE: Price list bug, price not showing up, messed up order or something, fix it
 
 """

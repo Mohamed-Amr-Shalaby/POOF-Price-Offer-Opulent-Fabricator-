@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div class="container">
+        <form action = "/cover_letter_info" method = "post">
+            <div class="row">
+                <div class="row form-group">
+                    <label for="date" class="col-sm-1 col-form-label">Issue Date</label>
+                    <div class="col-4">
+                        <div class="input-group date" id="datepicker">
+                            <input name = quotation_date id = "quotation_date" type="text" class="form-control" placeholder = "DD/MM/YYYY">
+                            <span class="input-group-append">
+                                <span class="input-group-text bg-white d-block">
+                                    <i class="fa fa-calendar"></i>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <label for="customer_name" class="col-sm-1 col-form-label">Customer Name</label>
+                <div class="col-4">
+                    <input required name = "customer_name" id = "customer_name" type="text" class="form-control" placeholder="Enter Customer Name">
+                </div>
+                <label for="customer_number" class="col-sm-1 col-form-label">Customer Number</label>
+                <div class="col-4">
+                    <input required name = "customer_number" id = "customer_number" type="tel" class="form-control" placeholder="Enter Customer Number">
+                </div>
+            </div>
+            <div class="row">
+                <label for="rep_name" class="col-sm-1 col-form-label">Contact Name</label>
+                <div class="col-4">
+                    <input name = "rep_name" id = "rep_name" type="text" class="form-control" placeholder="Enter Rep name here">
+                </div>
+                <label for="rep_number" class="col-sm-1 col-form-label">Contact Number</label>
+                <div class="col-4">
+                    <input name = "rep_number" id = "rep_number" type="tel" class="form-control" placeholder="Enter Rep Number here">
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <label for="valid_for" class="col-sm-1 col-form-label">Valid for (Days) - مدة العرض</label>
+                <div class="col-4">
+                    <input name = "valid_for" id = "valid_for" type="number" step = "7" class="form-control" placeholder="Valid for 7 days from issue date">
+                </div>
+                <label for="supply" class="col-sm-1 col-form-label">Supply - التوريد</label>
+                <div class="col-4">
+                    <input name = "supply" id = "supply" type="tel" class="form-control" placeholder="Products in stock">
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <label for="currency" class="col-sm-1 col-form-label">Currency</label>
+                <div class="col-4">
+                    <input name = "currency" id = "currency" type="text" class="form-control" placeholder="In EGP and are not VAT inclusive">
+                </div>
+                <label for="delivery" class="col-sm-1 col-form-label">Delivery - التسليم</label>
+                <div class="col-4">
+                    <input name = "delivery" id = "delivery" type="tel" class="form-control" placeholder="Delivery: Your location">
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <label for="payment_terms" class="col-sm-1 col-form-label">Payment Terms - شروط الدفع</label>
+                <div class="col-4">
+                    <input name = "payment_terms" id = "payment_terms" type="text" class="form-control" placeholder="Payment: 50% as initial payment and 50% upon delivery">
+                </div>
+                <label for="payment_method" class="col-sm-1 col-form-label">Payment Method - طريقة الدفع</label>
+                <div class="col-4">
+                    <select name = "payment_method" id = "payment_method" class="form-control">
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="bank transfer">Bank Transfer</option>
+                    </select>
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <label for="warranty" class="col-sm-1 col-form-label">Warranty (Months) - فترة الضمان (بالشهور)</label>
+                <div class="col-4">
+                    <input name = "warranty" id = "warranty" type="number" class="form-control" placeholder="Warranty: 12 months against manufacturing defects">
+                </div>
+                <label for="vat" class="col-sm-1 col-form-label">VAT</label>
+                <div class="col-4">
+                    <select name = "vat" id = "vat" class="form-control">
+                        <option value="VAT not included">VAT not included</option>
+                        <option value="VAT included">VAT included</option>
+                    </select>
+                </div>
+            </div>
+            <br>
+            <div class ="row">
+                <label for="account" class="col-sm-1 col-form-label">Bank Account</label>
+                <div class="col-4">
+                    <select name = "account" id = "account" class="form-control">
+                        <option value="CIB">Multimedica CIB</option>
+                        <option value="QNB">Multimedica QNB</option>
+                        <option value="CIB Group">Multimedica Group CIB</option>
+                        <option value="QNB Group">Multimedica Group QNB</option>
+                    </select>
+                </div>
+            </div>
+            <br>
+            <hr>
+            <div class ="row">
+                <button type = "submit" class = "btn btn-primary">Submit Cover Letter</button>
+            </div>
+        </form>
+        <script type="text/javascript">
+            $(function() {
+                $('#datepicker').datepicker({
+                    format: 'dd/mm/yyyy',
+                    autoclose: true,
+                    todayHighlight: true,
+                    todayBtn: 'linked'
+                });
+            });
+        </script>
+    </div>
+{% endblock %}

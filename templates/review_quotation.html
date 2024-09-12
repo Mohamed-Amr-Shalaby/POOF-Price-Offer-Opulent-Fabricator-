@@ -13,31 +13,82 @@
             <div class = "row">
                 <label for = "date" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Quotation Date: </label>
                 <div class = "col-3">
-                    <input name = "date" id = "date" type="text" value = "{{ customer_info['Date'] }}" class = "form-control" readonly>
+                    <input name = "date" id = "date" type="text" value = "{{ current_cover_letter_info['Date'] }}" class = "form-control" readonly>
                 </div>
             </div>
             <br>
             <div class = "row">
                 <label for = "cname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Name: </label>
                 <div class = "col-3">
-                    <input name = "cname" id = "cname" type="text" value = "{{ customer_info['Customer_Name'] }}" class = "form-control" readonly>
+                    <input name = "cname" id = "cname" type="text" value = "{{ current_cover_letter_info['Customer_Name'] }}" class = "form-control" readonly>
                 </div>
                 <label for = "cnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Customer Number: </label>
                 <div class = "col-3">
-                    <input name = "cnum" id = "cnum" type="text" value = "{{ customer_info['Customer_Number'] }}" class = "form-control" readonly>
+                    <input name = "cnum" id = "cnum" type="text" value = "{{ current_cover_letter_info['Customer_Number'] }}" class = "form-control" readonly>
                 </div>
             </div>
             <br>
             <div class = "row">
                 <label for = "rname" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Name: </label>
                 <div class = "col-3">
-                    <input name = "rname" id = "rname" type="text" value = "{{ customer_info['Rep_Name'] }}" class = "form-control" readonly>
+                    <input name = "rname" id = "rname" type="text" value = "{{ current_cover_letter_info['Rep_Name'] }}" class = "form-control" readonly>
                 </div>
                 <label for = "rnum" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Rep Number: </label>
                 <div class = "col-3">
-                    <input name = "rnum" id = "rnum" type="text" value = "{{ customer_info['Rep_Number'] }}" class = "form-control" readonly>
+                    <input name = "rnum" id = "rnum" type="text" value = "{{ current_cover_letter_info['Rep_Number'] }}" class = "form-control" readonly>
                 </div>
             </div>
+            <br>
+            <!--Cover letter data
+                    current_cover_letter_info["Valid_for"] = valid_for.value
+            current_cover_letter_info["Supply"] = supply.value
+            current_cover_letter_info["Currency"] = currency.value
+            current_cover_letter_info["Delivery"] = delivery.value
+            current_cover_letter_info["Payment_Terms"] = payment_terms.value
+            current_cover_letter_info["Payment_Method"] = payment_method.value
+            current_cover_letter_info["Warranty"] = warranty.value
+
+            -->
+            <div class = "row">
+                <label for = "valid_for" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Valid For: </label>
+                <div class = "col-3">
+                    <input name = "valid_for" id = "valid_for" type="text" value = "{{ current_cover_letter_info['Valid_For'] }}" class = "form-control" readonly>
+                </div>
+                <label for = "supply" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Supply: </label>
+                <div class = "col-3">
+                    <input name = "supply" id = "supply" type="text" value = "{{ current_cover_letter_info['Supply'] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <div class = "row">
+                <label for = "currency" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Currency: </label>
+                <div class = "col-3">
+                    <input name = "currency" id = "currency" type="text" value = "{{ current_cover_letter_info['Currency'] }}" class = "form-control" readonly>
+                </div>
+                <label for = "delivery" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Delivery: </label>
+                <div class = "col-3">
+                    <input name = "delivery" id = "delivery" type="text" value = "{{ current_cover_letter_info['Delivery'] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <div class = "row">
+                <label for = "payment_terms" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Payment Terms: </label>
+                <div class = "col-3">
+                    <input name = "payment_terms" id = "payment_terms" type="text" value = "{{ current_cover_letter_info['Payment_Terms'] }}" class = "form-control" readonly>
+                </div>
+                <label for = "payment_method" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Payment Method: </label>
+                <div class = "col-3">
+                    <input name = "payment_method" id = "payment_method" type="text" value = "{{ current_cover_letter_info['Payment_Method'] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
+            <div class = "row">
+                <label for = "warranty" class = "col-sm-1 col-form-label" style="width: 12.499999995%">Warranty: </label>
+                <div class = "col-3">
+                    <input name = "warranty" id = "warranty" type="text" value = "{{ current_cover_letter_info['Warranty'] }}" class = "form-control" readonly>
+                </div>
+            </div>
+            <br>
             <hr>
             <br>
             <h2>Product Details</h2>

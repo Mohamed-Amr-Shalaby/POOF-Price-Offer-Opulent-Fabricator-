@@ -15,6 +15,7 @@
                         <th>Price</th>
                         <th>Quantity</th>
                         <th>Sum</th>
+                        <th>Download Brochure</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -25,6 +26,16 @@
                             <td style="height: 3%; width: 10%; vertical-align: middle;">{{entry[2]}}</td>
                             <td style="height: 3%; width: 10%; vertical-align: middle;">{{entry[3]}}</td>
                             <td style="height: 3%; width: 10%; vertical-align: middle;">{{entry[4]}}</td>
+                            <!--Brochure download button-->
+                            <td style="height: 3%; width: 10%; vertical-align:middle;">
+                                {% if entry[5] == "spec" %}
+                                <p></p>
+                                {% elif entry[5] != None %}
+                                <a href = "{{entry[5]}}" class = "btn btn-primary">Brochure</a>
+                                {% else %}
+                                <a href = "#" class = "btn btn-primary disabled">Brochure Unavailable</a>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                         
